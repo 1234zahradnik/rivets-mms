@@ -41,28 +41,31 @@
 <input type="text" name="location" value="{{ item.location if item else '' }}" placeholder="e.g., Shelf B-12">
 </div>
 <div class="form-group">
-<label>UOM</label>
+<label>How is it counted?</label>
+<span class="hint">Pick how you measure this item — each piece, by gallon, etc.</span>
 <select name="unit_of_measure">
-<option value="EA" {% if not item or item.unit_of_measure == 'EA' %}selected{% endif %}>Each (EA)</option>
-<option value="FT" {% if item and item.unit_of_measure == 'FT' %}selected{% endif %}>Foot (FT)</option>
-<option value="GAL" {% if item and item.unit_of_measure == 'GAL' %}selected{% endif %}>Gallon (GAL)</option>
-<option value="LB" {% if item and item.unit_of_measure == 'LB' %}selected{% endif %}>Pound (LB)</option>
-<option value="BOX" {% if item and item.unit_of_measure == 'BOX' %}selected{% endif %}>Box (BOX)</option>
+<option value="EA" {% if not item or item.unit_of_measure == 'EA' %}selected{% endif %}>Each (individual pieces)</option>
+<option value="FT" {% if item and item.unit_of_measure == 'FT' %}selected{% endif %}>Foot (length)</option>
+<option value="GAL" {% if item and item.unit_of_measure == 'GAL' %}selected{% endif %}>Gallon (liquid)</option>
+<option value="LB" {% if item and item.unit_of_measure == 'LB' %}selected{% endif %}>Pound (weight)</option>
+<option value="BOX" {% if item and item.unit_of_measure == 'BOX' %}selected{% endif %}>Box (by the box)</option>
 </select>
 </div>
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
 <div class="form-group">
-<label>Qty on Hand</label>
+<label>How many do you have now?</label>
 <input type="number" name="quantity_on_hand" value="{{ item.quantity_on_hand if item else 0 }}">
 </div>
 <div class="form-group">
-<label>Min Stock</label>
+<label>Low Stock Warning Level</label>
+<span class="hint">Show a warning when stock drops to this number or below.</span>
 <input type="number" name="min_stock_level" value="{{ item.min_stock_level if item else 0 }}">
 </div>
 <div class="form-group">
-<label>Reorder Point</label>
+<label>Reorder When Below</label>
+<span class="hint">The quantity that tells you it's time to order more.</span>
 <input type="number" name="reorder_point" value="{{ item.reorder_point if item else 0 }}">
 </div>
 </div>

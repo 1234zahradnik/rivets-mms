@@ -60,7 +60,12 @@
 {% include 'pagination.html' %}
 
 {% else %}
-<p style="color:#666;">No machines found.</p>
+<div class="empty-state">
+<div class="empty-icon">⚙️</div>
+<h3>No machines added yet</h3>
+<p>Add your equipment here so you can track repairs, maintenance history, and which parts go with each machine.</p>
+<a href="{{ url_for('machine_add') }}" class="btn btn-accent">+ Add Your First Machine</a>
+</div>
 {% endif %}
 </div>
 

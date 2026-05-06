@@ -25,26 +25,46 @@
 {% endif %}
 
 <div class="stats">
+<a href="{{ url_for('work_orders') }}" style="text-decoration:none;">
 <div class="stat-card" style="border-top:4px solid #1565c0;">
 <div class="number" style="color:#1565c0;">{{ open_wos }}</div>
-<div class="label">Open Work Orders</div>
+<div class="label">Jobs Open</div>
 </div>
+</a>
 {% set od_color = '#c62828' if overdue > 0 else '#2e7d32' %}
-<div class="stat-card" style="border-top:4px solid {{ od_color }};">
+<a href="{{ url_for('work_orders', status='Requested') }}" style="text-decoration:none;">
+<div class="stat-card {% if overdue > 0 %}danger{% else %}ok{% endif %}" style="border-top:4px solid {{ od_color }};">
 <div class="number" style="color:{{ od_color }};">{{ overdue }}</div>
-<div class="label">Overdue</div>
+<div class="label">Past Due</div>
 </div>
+</a>
 {% set ls_color = '#e65100' if low_stock > 0 else '#2e7d32' %}
-<div class="stat-card" style="border-top:4px solid {{ ls_color }};">
+<a href="{{ url_for('inventory_list', low_stock='1') }}" style="text-decoration:none;">
+<div class="stat-card {% if low_stock > 0 %}warning{% else %}ok{% endif %}" style="border-top:4px solid {{ ls_color }};">
 <div class="number" style="color:{{ ls_color }};">{{ low_stock }}</div>
-<div class="label">Low Stock Items</div>
+<div class="label">Parts Low</div>
 </div>
-{% set md_color = '#c62828' if machines_down > 0 else '#7b1fa2' %}
-<div class="stat-card" style="border-top:4px solid {{ md_color }};">
+</a>
+{% set md_color = '#c62828' if machines_down > 0 else '#2e7d32' %}
+<a href="{{ url_for('machines_list', status='Down') }}" style="text-decoration:none;">
+<div class="stat-card {% if machines_down > 0 %}danger{% else %}ok{% endif %}" style="border-top:4px solid {{ md_color }};">
 <div class="number" style="color:{{ md_color }};">{{ machines_down }}</div>
-<div class="label">Machines Down</div>
+<div class="label">Equipment Down</div>
+</div>
+</a>
+</div>
+
+{% if open_wos == 0 and not machines_down_list %}
+<div class="card" style="border:2px dashed #b0c4de;background:#f0f5ff;text-align:center;padding:2rem;">
+<div style="font-size:2.5rem;margin-bottom:0.5rem;">👋</div>
+<h2 style="margin-bottom:0.5rem;">Welcome to Rivet's MMS!</h2>
+<p style="color:#555;max-width:500px;margin:0 auto 1.25rem;">Start by adding your equipment, then your parts inventory. When something breaks, use the <strong>"+ Report a Problem"</strong> button at the bottom of the screen.</p>
+<div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;">
+<a href="{{ url_for('machine_add') }}" class="btn btn-primary">⚙️ Add First Machine</a>
+<a href="{{ url_for('inventory_add') }}" class="btn" style="background:#eee;color:#333;">📦 Add Parts</a>
 </div>
 </div>
+{% endif %}
 
 <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;">
 
@@ -82,7 +102,7 @@
 
 <div>
 <div class="card">
-<h2>Upcoming PM</h2>
+<h2>Upcoming Preventive Maintenance</h2>
 {% if upcoming_pm %}
 <table>
 <thead><tr><th>WO</th><th>Title</th><th>Due</th></tr></thead>

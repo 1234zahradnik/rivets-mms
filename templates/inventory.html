@@ -72,8 +72,12 @@
 {% include 'pagination.html' %}
 
 {% else %}
-<p style="color:#666;">No inventory items found.</p>
-<a href="{{ url_for('inventory_add') }}" class="btn btn-accent">Add First Part</a>
+<div class="empty-state">
+<div class="empty-icon">📦</div>
+<h3>No parts in inventory yet</h3>
+<p>Add your spare parts here so you can track what you have on hand, get low-stock alerts, and link parts to work orders.</p>
+<a href="{{ url_for('inventory_add') }}" class="btn btn-accent">+ Add Your First Part</a>
+</div>
 {% endif %}
 </div>
 
