@@ -888,9 +888,10 @@ def server_error(e):
 # INIT
 # ══════════════════════════════════════════════════════════════════════════════
 
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(
         debug=app.config.get('FLASK_DEBUG', False),
         host='0.0.0.0',
