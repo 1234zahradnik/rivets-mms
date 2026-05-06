@@ -111,4 +111,71 @@
 </form>
 </div>
 
+{% block extra_js %}
+<script>
+window.tourSteps = [
+  {
+    sel: 'input[name=part_number]',
+    title: '🔢 Part Number',
+    text: 'Your internal number for this part. Can be anything you use to identify it — from the bag it came in, your own system, or the supplier\'s number. Example: "6205-2RS" or "BELT-042".'
+  },
+  {
+    sel: 'input[name=name]',
+    title: '📛 Part Name',
+    text: 'What is this part called? Use the name your team already uses. Example: "Bearing, 6205" or "V-Belt, Line 3 Drive".'
+  },
+  {
+    sel: 'textarea[name=description]',
+    title: '📋 Description',
+    text: 'Describe the part so anyone can identify it. Include size, color, or anything else that helps. Tap 🎤 to speak instead of type.'
+  },
+  {
+    sel: 'select[name=category]',
+    title: '📁 Category',
+    text: 'Pick the type of part. This helps you search and organize your inventory later. "Mechanical" covers bearings, belts, gears. "Electrical" covers switches, fuses, motors.'
+  },
+  {
+    sel: 'input[name=location]',
+    title: '📍 Where is it stored?',
+    text: 'Where in the shop or storeroom do you keep this part? Example: "Shelf B-12" or "Parts Room, Cabinet 3, Drawer 2". The more specific the better.'
+  },
+  {
+    sel: 'select[name=unit_of_measure]',
+    title: '📏 How do you count it?',
+    text: 'If you count individual pieces (one bearing, one belt), pick "Each". If you measure by the foot, gallon, or pound, pick that instead.'
+  },
+  {
+    sel: 'input[name=quantity_on_hand]',
+    title: '🔢 How many do you have now?',
+    text: 'Count what\'s on the shelf right now and enter that number here.'
+  },
+  {
+    sel: 'input[name=min_stock_level]',
+    title: '⚠️ Low Stock Warning Level',
+    text: 'When your stock drops to this number, the system shows a warning. Example: if you always want at least 2 on hand, enter 2.'
+  },
+  {
+    sel: 'input[name=unit_cost]',
+    title: '💲 Cost Per Unit',
+    text: 'What does one of these cost to buy? Enter the price in dollars. This helps track maintenance spending.'
+  },
+  {
+    sel: 'input[name=supplier]',
+    title: '🏪 Supplier',
+    text: 'Who do you buy this part from? Example: "Grainger" or "McMaster-Carr". Helps you know where to reorder.'
+  },
+  {
+    sel: 'textarea[name=used_on]',
+    title: '⚙️ Which machines use this part?',
+    text: 'List the machines this part fits. Example: "Line 3 Conveyor, Mixer A". This helps maintenance find the right part quickly. Tap 🎤 to speak.'
+  },
+  {
+    sel: 'button[type=submit]',
+    title: '✅ Save the Part',
+    text: 'All done! Tap to add this part to your inventory.'
+  }
+];
+</script>
+{% endblock %}
+
 {% endblock %}

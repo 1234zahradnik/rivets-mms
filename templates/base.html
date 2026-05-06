@@ -104,6 +104,31 @@ tr:hover{background:#fafbff;}
 }
 </style>
 {% block extra_css %}{% endblock %}
+<style>
+/* ── Voice Input ─────────────────────────────────────────────────────── */
+.voice-wrap{display:flex;align-items:flex-start;gap:0.4rem;}
+.voice-wrap .voice-field{flex:1;min-width:0;}
+.voice-btn{flex-shrink:0;background:#e8eaf6;border:1px solid #9fa8da;border-radius:6px;padding:0.45rem 0.6rem;cursor:pointer;font-size:1rem;line-height:1;transition:all 0.15s;color:#1a237e;margin-top:0;}
+.voice-btn:hover{background:#c5cae9;}
+.voice-btn.recording{background:#ffebee;border-color:#e57373;color:#c62828;}
+.voice-btn.recording .mic-icon{display:inline-block;animation:mic-pulse 0.7s infinite;}
+@keyframes mic-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.25);}}
+/* ── Tour System ─────────────────────────────────────────────────────── */
+.tour-highlight{outline:3px solid var(--accent)!important;outline-offset:3px!important;border-radius:6px!important;box-shadow:0 0 0 9999px rgba(0,0,0,0.55)!important;position:relative!important;z-index:9001!important;}
+.tour-box{position:fixed;z-index:9002;background:#1a237e;color:#fff;border-radius:12px;padding:1.1rem 1.25rem;max-width:310px;width:calc(100vw - 2rem);box-shadow:0 8px 28px rgba(0,0,0,0.35);left:50%;transform:translateX(-50%);transition:top 0.25s;}
+.tour-box .tour-step-label{font-size:0.75rem;opacity:0.65;margin-bottom:0.2rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;}
+.tour-box h4{font-size:1rem;margin-bottom:0.35rem;color:#fff;}
+.tour-box p{font-size:0.875rem;opacity:0.88;margin-bottom:0.85rem;line-height:1.5;}
+.tour-box .tour-btns{display:flex;gap:0.5rem;justify-content:space-between;align-items:center;}
+.tour-box .tour-btns button{padding:0.45rem 1rem;border-radius:6px;border:none;cursor:pointer;font-size:0.875rem;font-weight:600;}
+.tour-next{background:var(--accent);color:#fff;}
+.tour-next:hover{opacity:0.9;}
+.tour-skip{background:transparent;color:rgba(255,255,255,0.55);font-size:0.8rem!important;padding:0!important;}
+.tour-skip:hover{color:#fff;}
+.tour-prog{font-size:0.8rem;opacity:0.6;}
+.guide-btn{display:inline-flex;align-items:center;gap:0.4rem;background:#e8eaf6;color:#1a237e;border:1px solid #9fa8da;border-radius:6px;padding:0.45rem 0.9rem;font-size:0.875rem;font-weight:600;cursor:pointer;margin-bottom:1rem;text-decoration:none;}
+.guide-btn:hover{background:#c5cae9;}
+</style>
 </head>
 <body>
 <header>
@@ -146,7 +171,7 @@ tr:hover{background:#fafbff;}
 </div>
 <a href="{{ url_for('wo_request') }}" class="report-btn">+ Report a Problem</a>
 <script>
-// Mobile menu toggle
+/* ── Mobile menu ───────────────────────────────────────────────────── */
 var toggle = document.getElementById('menuToggle');
 var nav = document.getElementById('mainNav');
 if(toggle && nav){
@@ -155,19 +180,161 @@ if(toggle && nav){
     toggle.textContent = nav.classList.contains('open') ? '✕' : '☰';
   });
 }
-// Auto-dismiss success alerts after 5 seconds
+
+/* ── Auto-dismiss success alerts after 5s ──────────────────────────── */
 document.querySelectorAll('.alert-success').forEach(function(el){
   setTimeout(function(){ if(el.parentElement) el.remove(); }, 5000);
 });
-// Show "Saving..." on form submit
+
+/* ── Saving... on submit ────────────────────────────────────────────── */
 document.querySelectorAll('form').forEach(function(form){
   form.addEventListener('submit', function(){
     form.querySelectorAll('button[type=submit]').forEach(function(btn){
       btn.disabled = true;
+      var orig = btn.textContent;
       btn.textContent = '⏳ Saving...';
     });
   });
 });
+
+/* ── Voice Input ────────────────────────────────────────────────────── */
+(function(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return; // browser doesn't support it — just don't show buttons
+
+  function addVoiceBtn(field){
+    if(field.dataset.noVoice) return;
+    if(field.closest('.voice-wrap')) return; // already wrapped
+
+    var wrap = document.createElement('div');
+    wrap.className = 'voice-wrap';
+    field.parentNode.insertBefore(wrap, field);
+    field.classList.add('voice-field');
+    wrap.appendChild(field);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'voice-btn';
+    btn.title = 'Tap to speak — your words will be typed here automatically';
+    btn.innerHTML = '<span class="mic-icon">🎤</span>';
+    wrap.appendChild(btn);
+
+    var rec = null;
+    btn.addEventListener('click', function(){
+      if(rec){ rec.stop(); return; }
+      rec = new SR();
+      rec.lang = 'en-US';
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+
+      btn.classList.add('recording');
+      btn.title = 'Recording... tap to stop';
+
+      rec.onresult = function(e){
+        var text = e.results[0][0].transcript;
+        if(field.value && !field.value.endsWith(' ')) field.value += ' ';
+        field.value += text;
+        field.dispatchEvent(new Event('input'));
+      };
+      rec.onerror = function(e){
+        if(e.error === 'not-allowed'){
+          alert('Microphone access was blocked. Please allow microphone access in your browser settings and try again.');
+        }
+      };
+      rec.onend = function(){
+        btn.classList.remove('recording');
+        btn.title = 'Tap to speak — your words will be typed here automatically';
+        rec = null;
+      };
+      rec.start();
+    });
+  }
+
+  // Add to textareas
+  document.querySelectorAll('textarea').forEach(addVoiceBtn);
+  // Add to single-line text inputs that aren't search/hidden/date/number
+  document.querySelectorAll('input[type=text]').forEach(addVoiceBtn);
+})();
+
+/* ── Guided Tour Engine ─────────────────────────────────────────────── */
+(function(){
+  if(typeof window.tourSteps === 'undefined') return;
+  var steps = window.tourSteps;
+  var cur = 0;
+  var box = null;
+  var prevEl = null;
+
+  // Inject "Guide Me" button before the first form-group
+  var firstGroup = document.querySelector('.form-group, form');
+  if(firstGroup){
+    var card = firstGroup.closest('.card');
+    if(card){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'guide-btn';
+      btn.innerHTML = '🧭 &nbsp;Guide Me Through This Form';
+      card.insertBefore(btn, card.querySelector('.form-group, form'));
+      btn.addEventListener('click', startTour);
+    }
+  }
+
+  function startTour(){ cur = 0; showStep(); }
+
+  function showStep(){
+    if(cur >= steps.length){ endTour(); return; }
+    var s = steps[cur];
+    var el = document.querySelector(s.sel);
+    if(!el){ cur++; showStep(); return; }
+
+    // Remove previous highlight
+    if(prevEl) prevEl.classList.remove('tour-highlight');
+    prevEl = el;
+
+    // Expand <details> parents
+    var det = el.closest('details');
+    if(det) det.open = true;
+
+    // Scroll & highlight
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    el.classList.add('tour-highlight');
+    el.focus();
+
+    // Build/update tooltip box
+    if(!box){
+      box = document.createElement('div');
+      box.className = 'tour-box';
+      document.body.appendChild(box);
+    }
+    box.innerHTML =
+      '<div class="tour-step-label">Step '+(cur+1)+' of '+steps.length+'</div>'+
+      '<h4>'+s.title+'</h4>'+
+      '<p>'+s.text+'</p>'+
+      '<div class="tour-btns">'+
+        '<button class="tour-skip">Skip tour</button>'+
+        '<span class="tour-prog">'+(cur+1)+' / '+steps.length+'</span>'+
+        '<button class="tour-next">'+(cur===steps.length-1?'✅ Done':'Next →')+'</button>'+
+      '</div>';
+    box.querySelector('.tour-next').onclick = function(){ cur++; showStep(); };
+    box.querySelector('.tour-skip').onclick = endTour;
+
+    // Position: above or below the element
+    setTimeout(function(){
+      var rect = el.getBoundingClientRect();
+      var spaceBelow = window.innerHeight - rect.bottom;
+      if(spaceBelow > 180){
+        box.style.top = (rect.bottom + window.scrollY + 12)+'px';
+      } else {
+        box.style.top = (rect.top + window.scrollY - box.offsetHeight - 12)+'px';
+      }
+    }, 50);
+  }
+
+  function endTour(){
+    if(prevEl) prevEl.classList.remove('tour-highlight');
+    if(box){ box.remove(); box = null; }
+    prevEl = null;
+  }
+})();
 </script>
 {% block extra_js %}{% endblock %}
 </body>

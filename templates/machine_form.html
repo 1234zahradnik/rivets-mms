@@ -47,4 +47,51 @@
 </form>
 </div>
 
+{% block extra_js %}
+<script>
+window.tourSteps = [
+  {
+    sel: 'input[name=name]',
+    title: '⚙️ Machine Name',
+    text: 'What do you call this machine? Use the name everyone on the floor already uses. Example: "Line 3 Conveyor" or "Hydraulic Press #2".'
+  },
+  {
+    sel: 'input[name=asset_tag]',
+    title: '🏷️ Asset Tag (ID Number)',
+    text: 'A unique code you assign to this machine. If you use equipment stickers, use that number here. Example: "CONV-003". This is how the system tells machines apart.'
+  },
+  {
+    sel: 'input[name=location]',
+    title: '📍 Where is it?',
+    text: 'Where in the building? Example: "Building A, East Wall" or "Production Floor, Line 2". Helps people find it quickly when there\'s a problem.'
+  },
+  {
+    sel: 'input[name=manufacturer]',
+    title: '🏭 Who made it?',
+    text: 'The company that built this machine — usually on a metal nameplate on the machine itself. Example: "Caterpillar" or "Haas". Leave blank if you don\'t know.'
+  },
+  {
+    sel: 'input[name=model_number]',
+    title: '🔢 Model Number',
+    text: 'Found on the machine\'s nameplate. Helpful when ordering parts. Leave blank if you don\'t have it.'
+  },
+  {
+    sel: 'input[name=serial_number]',
+    title: '🔑 Serial Number',
+    text: 'Also on the nameplate. Every machine has a unique one. Useful for warranty calls or ordering the right parts.'
+  },
+  {
+    sel: 'textarea[name=notes]',
+    title: '📝 Extra Notes',
+    text: 'Anything else maintenance should know? Quirks, known issues, special startup steps. Tap 🎤 to speak instead of type.'
+  },
+  {
+    sel: 'button[type=submit]',
+    title: '✅ Save the Machine',
+    text: 'All done! Tap to save this machine to the system.'
+  }
+];
+</script>
+{% endblock %}
+
 {% endblock %}

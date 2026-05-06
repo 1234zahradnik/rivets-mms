@@ -125,6 +125,50 @@
 
 {% block extra_js %}
 <script>
+/* Tour steps for this form */
+window.tourSteps = [
+  {
+    sel: '#emerg-btn',
+    title: '⚡ Is it an emergency?',
+    text: 'If the problem is dangerous or completely stopping production, tap this button first. It will alert maintenance right away. If it\'s not an emergency, skip it and move on.'
+  },
+  {
+    sel: 'input[name=title]',
+    title: '📝 What\'s the problem?',
+    text: 'Type a short description of the issue. Example: "Conveyor belt stopped on Line 3" or "Hydraulic leak on press #2". Keep it simple — a few words is enough.'
+  },
+  {
+    sel: 'select[name=machine_id]',
+    title: '⚙️ Which machine?',
+    text: 'Pick the machine from the list. If you can\'t find it or it\'s not a machine issue, leave it as "Not sure".'
+  },
+  {
+    sel: 'textarea[name=description]',
+    title: '📋 More details (optional)',
+    text: 'Tell maintenance more about what you saw, heard, or smelled. When did it start? Is it getting worse? You can tap the 🎤 microphone button to speak instead of type.'
+  },
+  {
+    sel: 'input[name=requester_name]',
+    title: '👤 Your name',
+    text: 'Enter your name so maintenance knows who to talk to if they have questions.'
+  },
+  {
+    sel: '.prio-btn[data-p="Medium"]',
+    title: '🔴 How urgent is it?',
+    text: 'Pick Low (can wait), Medium (needs attention soon), or High (needs fixing today). If you already tapped the Emergency button, skip this step.'
+  },
+  {
+    sel: 'input[name=photo]',
+    title: '📷 Take a photo (optional)',
+    text: 'A picture helps maintenance understand the problem faster. Tap this to take a photo with your camera — or skip it if you\'re in a hurry.'
+  },
+  {
+    sel: 'button[type=submit]',
+    title: '✅ Submit your request',
+    text: 'You\'re done! Tap Submit and your request goes straight to the maintenance team. They\'ll be notified right away.'
+  }
+];
+
 var isEmergency = false;
 
 function toggleEmergency() {
