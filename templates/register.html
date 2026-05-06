@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register - Rivet's MMS</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+body{background:#f0f2f5;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:1rem;}
+.logo{font-size:1.8rem;font-weight:800;color:#1a237e;margin-bottom:0.25rem;}
+.logo span{color:#ff6f00;}
+.sub{color:#666;font-size:0.9rem;margin-bottom:2rem;}
+.card{background:#fff;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);padding:2rem;width:100%;max-width:420px;}
+.card h2{font-size:1.1rem;color:#1a237e;margin-bottom:0.25rem;}
+.card p{color:#888;font-size:0.85rem;margin-bottom:1.5rem;}
+.form-group{margin-bottom:1rem;}
+label{display:block;font-weight:600;font-size:0.88rem;margin-bottom:0.4rem;color:#444;}
+input{width:100%;padding:0.65rem 0.8rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem;transition:border-color 0.15s;}
+input:focus{outline:none;border-color:#1a237e;}
+.hint{font-size:0.78rem;color:#999;margin-top:0.25rem;}
+.btn{width:100%;padding:0.75rem;background:#ff6f00;color:#fff;border:none;border-radius:6px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:0.5rem;transition:opacity 0.2s;}
+.btn:hover{opacity:0.88;}
+.alert{padding:0.65rem 0.9rem;border-radius:6px;margin-bottom:1rem;font-size:0.88rem;background:#ffebee;color:#c62828;border:1px solid #ffcdd2;}
+.footer-link{text-align:center;margin-top:1.25rem;font-size:0.88rem;color:#666;}
+.footer-link a{color:#1a237e;text-decoration:none;font-weight:600;}
+hr{border:none;border-top:1px solid #eee;margin:1rem 0;}
+</style>
+</head>
+<body>
+<div class="logo">🔧 Rivet's <span>MMS</span></div>
+<div class="sub">Maintenance Management System</div>
+
+<div class="card">
+<h2>Set Up Your Company</h2>
+<p>Takes 30 seconds. You'll be the admin — you can add your team after.</p>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="alert">{{ message }}</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+<form method="post">
+<div class="form-group">
+<label>Company Name *</label>
+<input type="text" name="company_name" required placeholder="Acme Manufacturing"
+  value="{{ request.form.get('company_name', '') }}" autofocus>
+</div>
+
+<hr>
+
+<div class="form-group">
+<label>Your Name *</label>
+<input type="text" name="username" required placeholder="Your name"
+  value="{{ request.form.get('username', '') }}" autocomplete="name">
+</div>
+<div class="form-group">
+<label>Email *</label>
+<input type="email" name="email" required placeholder="you@company.com"
+  value="{{ request.form.get('email', '') }}" autocomplete="email">
+</div>
+<div class="form-group">
+<label>Password *</label>
+<input type="password" name="password" required placeholder="Min 6 characters"
+  autocomplete="new-password">
+<div class="hint">You can change this later from the admin panel.</div>
+</div>
+
+<button type="submit" class="btn">Create Account &amp; Get Started</button>
+</form>
+</div>
+
+<div class="footer-link">
+Already have an account? <a href="{{ url_for('login') }}">Log in</a>
+</div>
+</body>
+</html>

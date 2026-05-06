@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - Rivet's MMS{% endblock %}
+{% block content %}
+
+{% if machines_down_list %}
+<div class="alert alert-danger" style="border-left:4px solid var(--danger);display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+<strong>&#9888; Machines Down:</strong>
+{% for m in machines_down_list %}
+<a href="{{ url_for('machine_detail', id=m.id) }}" style="color:var(--danger);font-weight:600;">{{ m.name }}</a>{% if not loop.last %}, {% endif %}
+{% endfor %}
+</div>
+{% endif %}
+
+{% if emergency_wos %}
+<div class="alert" style="background:#fff3e0;border:1px solid #ffcc80;border-left:4px solid var(--accent);">
+<strong>&#9889; {{ emergency_wos|length }} High-Priority WO{{ 's' if emergency_wos|length != 1 else '' }} Need Attention:</strong>
+<div style="margin-top:0.4rem;display:flex;flex-wrap:wrap;gap:0.5rem;">
+{% for wo in emergency_wos %}
+<a href="{{ url_for('wo_detail', id=wo.id) }}" style="display:inline-block;padding:0.2rem 0.6rem;background:{% if wo.priority == 'Emergency' %}var(--danger){% else %}#ff6f00{% endif %};color:#fff;border-radius:4px;font-size:0.85rem;text-decoration:none;font-weight:600;">
+{{ wo.wo_number }}: {{ wo.title[:35] }}{% if wo.title|length > 35 %}...{% endif %}
+</a>
+{% endfor %}
+</div>
+</div>
+{% endif %}
+
+<div class="stats">
+<div class="stat-card" style="border-top:4px solid #1565c0;">
+<div class="number" style="color:#1565c0;">{{ open_wos }}</div>
+<div class="label">Open Work Orders</div>
+</div>
+{% set od_color = '#c62828' if overdue > 0 else '#2e7d32' %}
+<div class="stat-card" style="border-top:4px solid {{ od_color }};">
+<div class="number" style="color:{{ od_color }};">{{ overdue }}</div>
+<div class="label">Overdue</div>
+</div>
+{% set ls_color = '#e65100' if low_stock > 0 else '#2e7d32' %}
+<div class="stat-card" style="border-top:4px solid {{ ls_color }};">
+<div class="number" style="color:{{ ls_color }};">{{ low_stock }}</div>
+<div class="label">Low Stock Items</div>
+</div>
+{% set md_color = '#c62828' if machines_down > 0 else '#7b1fa2' %}
+<div class="stat-card" style="border-top:4px solid {{ md_color }};">
+<div class="number" style="color:{{ md_color }};">{{ machines_down }}</div>
+<div class="label">Machines Down</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;">
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+<h2 style="margin-bottom:0;">Recent Work Orders</h2>
+<a href="{{ url_for('work_orders') }}" style="font-size:0.85rem;color:var(--primary);">View all &rsaquo;</a>
+</div>
+{% if recent_wos %}
+<table>
+<thead>
+<tr><th>WO#</th><th>Title</th><th>Machine</th><th>Priority</th><th>Status</th><th>Age</th></tr>
+</thead>
+<tbody>
+{% for wo in recent_wos %}
+{% set age = (today - wo.created_at.date()).days %}
+<tr style="{% if wo.due_date and wo.due_date < today and wo.status not in ['Completed','Cancelled'] %}border-left:3px solid var(--danger);{% elif wo.priority == 'Emergency' %}border-left:3px solid var(--danger);{% elif wo.priority == 'High' %}border-left:3px solid var(--accent);{% endif %}">
+<td><a href="{{ url_for('wo_detail', id=wo.id) }}">{{ wo.wo_number }}</a></td>
+<td>{{ wo.title[:38] }}{% if wo.title|length > 38 %}...{% endif %}</td>
+<td style="color:#666;font-size:0.85rem;">{{ wo.machine.name if wo.machine else '—' }}</td>
+<td><span class="badge badge-{{ wo.priority|lower }}">{{ wo.priority }}</span></td>
+<td><span class="badge badge-{{ wo.status|lower|replace(' ', '-') }}">{{ wo.status }}</span></td>
+<td style="color:{% if age > 7 and wo.status not in ['Completed','Cancelled'] %}var(--danger){% elif age > 3 %}var(--warning){% else %}#666{% endif %};font-size:0.85rem;">
+{% if wo.status in ['Completed','Cancelled'] %}—{% else %}{{ age }}d{% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<p style="color:#666;margin-bottom:1rem;">No work orders yet.</p>
+{% endif %}
+<a href="{{ url_for('wo_request') }}" class="btn btn-accent" style="margin-top:1rem;">+ Submit Work Order</a>
+</div>
+
+<div>
+<div class="card">
+<h2>Upcoming PM</h2>
+{% if upcoming_pm %}
+<table>
+<thead><tr><th>WO</th><th>Title</th><th>Due</th></tr></thead>
+<tbody>
+{% for wo in upcoming_pm %}
+<tr>
+<td><a href="{{ url_for('wo_detail', id=wo.id) }}">{{ wo.wo_number }}</a></td>
+<td style="font-size:0.85rem;">{{ wo.title[:28] }}{% if wo.title|length > 28 %}...{% endif %}</td>
+<td style="font-size:0.85rem;{% if wo.due_date <= today %}color:var(--danger);font-weight:600;{% endif %}">{{ wo.due_date.strftime('%m/%d') }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<p style="color:#666;font-size:0.9rem;">No upcoming PM in next 7 days.</p>
+{% endif %}
+</div>
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+<h2 style="margin-bottom:0;">Recent History</h2>
+</div>
+{% if recent_history %}
+<table>
+<thead><tr><th>Date</th><th>Machine</th><th>Type</th></tr></thead>
+<tbody>
+{% for h in recent_history %}
+<tr>
+<td style="font-size:0.85rem;">{{ h.date.strftime('%m/%d') }}</td>
+<td><a href="{{ url_for('machine_detail', id=h.machine_id) }}" style="font-size:0.85rem;">{{ h.machine.name[:22] }}</a></td>
+<td style="font-size:0.85rem;">{{ h.event_type }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<p style="color:#666;font-size:0.9rem;">No history entries yet.</p>
+{% endif %}
+</div>
+</div>
+
+</div>
+
+{% endblock %}

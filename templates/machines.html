@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Machines - Rivet's MMS{% endblock %}
+{% block nav_extra %}
+<form method="get" action="{{ url_for('machines_list') }}" class="search-bar">
+<input type="text" name="q" placeholder="Search machines..." value="{{ search }}">
+<button type="submit">🔍</button>
+</form>
+{% endblock %}
+{% block content %}
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+<h2>Machines / Assets</h2>
+<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+<form method="get" style="display:flex;gap:0.5rem;align-items:center;">
+<input type="hidden" name="q" value="{{ search }}">
+<select name="status" onchange="this.form.submit()">
+<option value="">All Statuses</option>
+<option value="Active" {% if status == 'Active' %}selected{% endif %}>Active</option>
+<option value="Down" {% if status == 'Down' %}selected{% endif %}>Down</option>
+<option value="Decommissioned" {% if status == 'Decommissioned' %}selected{% endif %}>Decommissioned</option>
+</select>
+</form>
+{% if search or status %}
+<a href="{{ url_for('machines_list') }}" class="btn btn-sm" style="background:#eee;color:#333;">✕ Clear</a>
+{% endif %}
+<a href="{{ url_for('machines_export') }}" class="btn btn-sm" style="background:#eee;color:#333;">📥 Export</a>
+<a href="{{ url_for('machine_add') }}" class="btn btn-accent">+ Add Machine</a>
+</div>
+</div>
+
+{% if machines %}
+<table>
+<thead>
+<tr>
+<th>Asset Tag</th>
+<th>Name</th>
+<th>Location</th>
+<th>Status</th>
+<th>Manufacturer</th>
+<th>Model</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody>
+{% for m in machines %}
+<tr>
+<td><a href="{{ url_for('machine_detail', id=m.id) }}">{{ m.asset_tag }}</a></td>
+<td>{{ m.name }}</td>
+<td>{{ m.location or '-' }}</td>
+<td><span class="status-dot status-{{ m.status|lower }}"></span>{{ m.status }}</td>
+<td>{{ m.manufacturer or '-' }}</td>
+<td>{{ m.model_number or '-' }}</td>
+<td><a href="{{ url_for('machine_edit', id=m.id) }}" class="btn btn-sm btn-primary">Edit</a></td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% include 'pagination.html' %}
+
+{% else %}
+<p style="color:#666;">No machines found.</p>
+{% endif %}
+</div>
+
+{% endblock %}

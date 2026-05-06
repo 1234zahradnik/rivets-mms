@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log In - Rivet's MMS</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+body{background:#f0f2f5;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:1rem;}
+.logo{font-size:1.8rem;font-weight:800;color:#1a237e;margin-bottom:0.25rem;}
+.logo span{color:#ff6f00;}
+.sub{color:#666;font-size:0.9rem;margin-bottom:2rem;}
+.card{background:#fff;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);padding:2rem;width:100%;max-width:380px;}
+.form-group{margin-bottom:1.1rem;}
+label{display:block;font-weight:600;font-size:0.88rem;margin-bottom:0.4rem;color:#444;}
+input[type=email],input[type=password],input[type=text]{width:100%;padding:0.65rem 0.8rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem;transition:border-color 0.15s;}
+input:focus{outline:none;border-color:#1a237e;}
+.btn{width:100%;padding:0.75rem;background:#1a237e;color:#fff;border:none;border-radius:6px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:0.5rem;transition:opacity 0.2s;}
+.btn:hover{opacity:0.88;}
+.alert{padding:0.65rem 0.9rem;border-radius:6px;margin-bottom:1rem;font-size:0.88rem;background:#ffebee;color:#c62828;border:1px solid #ffcdd2;}
+.alert-success{background:#e8f5e9;color:#2e7d32;border-color:#c8e6c9;}
+.footer-link{text-align:center;margin-top:1.25rem;font-size:0.88rem;color:#666;}
+.footer-link a{color:#1a237e;text-decoration:none;font-weight:600;}
+.remember{display:flex;align-items:center;gap:0.4rem;font-size:0.88rem;color:#555;}
+</style>
+</head>
+<body>
+<div class="logo">🔧 Rivet's <span>MMS</span></div>
+<div class="sub">Maintenance Management System</div>
+
+<div class="card">
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="alert{% if category == 'success' %} alert-success{% endif %}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+<form method="post">
+<div class="form-group">
+<label for="email">Email</label>
+<input type="email" id="email" name="email" required autofocus autocomplete="email"
+  placeholder="you@company.com" value="{{ request.form.get('email', '') }}">
+</div>
+<div class="form-group">
+<label for="password">Password</label>
+<input type="password" id="password" name="password" required autocomplete="current-password"
+  placeholder="••••••••">
+</div>
+<label class="remember">
+<input type="checkbox" name="remember"> Keep me logged in
+</label>
+<button type="submit" class="btn">Log In</button>
+</form>
+</div>
+
+<div class="footer-link">
+New here? <a href="{{ url_for('register') }}">Register your company</a>
+</div>
+</body>
+</html>

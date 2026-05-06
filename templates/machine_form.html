@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if machine else 'Add' }} Machine - Rivet's MMS{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:700px;">
+<h2>{{ 'Edit Machine' if machine else 'Add New Machine' }}</h2>
+
+<form method="post">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+<div class="form-group">
+<label>Name *</label>
+<input type="text" name="name" value="{{ machine.name if machine else '' }}" required>
+</div>
+<div class="form-group">
+<label>Asset Tag *</label>
+<input type="text" name="asset_tag" value="{{ machine.asset_tag if machine else '' }}" required placeholder="e.g., BM-001">
+</div>
+</div>
+
+<div class="form-group">
+<label>Location</label>
+<input type="text" name="location" value="{{ machine.location if machine else '' }}" placeholder="e.g., Building A, Line 3">
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+<div class="form-group">
+<label>Manufacturer</label>
+<input type="text" name="manufacturer" value="{{ machine.manufacturer if machine else '' }}">
+</div>
+<div class="form-group">
+<label>Model Number</label>
+<input type="text" name="model_number" value="{{ machine.model_number if machine else '' }}">
+</div>
+<div class="form-group">
+<label>Serial Number</label>
+<input type="text" name="serial_number" value="{{ machine.serial_number if machine else '' }}">
+</div>
+</div>
+
+<div class="form-group">
+<label>Notes</label>
+<textarea name="notes" placeholder="General notes about this machine...">{{ machine.notes if machine else '' }}</textarea>
+</div>
+
+<button type="submit" class="btn btn-primary">{{ 'Save Changes' if machine else 'Add Machine' }}</button>
+<a href="{{ url_for('machines_list') }}" class="btn" style="background:#eee;color:#333;">Cancel</a>
+</form>
+</div>
+
+{% endblock %}

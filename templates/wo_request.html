@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% block title %}Report a Problem - Rivet's MMS{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:640px;margin:0 auto;">
+<h2 style="margin-bottom:0.2rem;">Report a Problem</h2>
+<p style="color:#888;font-size:0.9rem;margin-bottom:1.5rem;">Fill in what you can — maintenance will take it from there.</p>
+
+<div id="emergency-banner" style="display:none;background:#c62828;color:#fff;padding:0.8rem 1rem;border-radius:6px;margin-bottom:1rem;font-weight:700;font-size:1rem;text-align:center;">
+&#9888; EMERGENCY — This will be paged immediately
+</div>
+
+<form method="post" id="wo-form" enctype="multipart/form-data">
+
+<!-- Hidden fields updated by JS -->
+<input type="hidden" name="priority"    id="priority-val" value="Medium">
+<input type="hidden" name="requester_email" value="">
+
+<!-- ── EMERGENCY BUTTON ───────────────────────────────────────────── -->
+<button type="button" id="emerg-btn"
+  style="width:100%;padding:0.9rem;background:#fff;border:2px solid #c62828;color:#c62828;border-radius:6px;font-size:1rem;font-weight:700;cursor:pointer;margin-bottom:1.25rem;transition:all 0.15s;"
+  onclick="toggleEmergency()">
+  &#9889;&nbsp; Is this an EMERGENCY?
+</button>
+
+<!-- ── WHAT'S THE PROBLEM ─────────────────────────────────────────── -->
+<div class="form-group">
+<label style="font-size:1rem;font-weight:600;">What's the problem? *</label>
+<input type="text" name="title" required
+  placeholder="e.g., Conveyor belt stopped on Line 3"
+  style="font-size:1rem;padding:0.75rem;">
+</div>
+
+<!-- ── WHICH MACHINE ──────────────────────────────────────────────── -->
+<div class="form-group">
+<label style="font-size:1rem;font-weight:600;">Which machine?</label>
+<select name="machine_id" style="font-size:1rem;padding:0.75rem;">
+<option value="">— Not sure / Not a machine —</option>
+{% for m in machines %}
+<option value="{{ m.id }}" {% if request.args.get('machine_id')|int == m.id %}selected{% endif %}>
+  {{ m.name }}{% if m.location %} — {{ m.location }}{% endif %}
+</option>
+{% endfor %}
+</select>
+</div>
+
+<!-- ── DESCRIBE IT ────────────────────────────────────────────────── -->
+<div class="form-group">
+<label style="font-size:1rem;font-weight:600;">Describe the issue <span style="font-weight:400;color:#888;">(optional but helpful)</span></label>
+<textarea name="description"
+  placeholder="What did you see, hear, or smell? When did it start? Any error codes?"
+  style="font-size:0.95rem;padding:0.75rem;min-height:90px;"></textarea>
+</div>
+
+<!-- ── YOUR NAME ──────────────────────────────────────────────────── -->
+<div class="form-group">
+<label style="font-size:1rem;font-weight:600;">Your name</label>
+<input type="text" name="requester_name"
+  placeholder="So maintenance knows who to follow up with"
+  style="font-size:1rem;padding:0.75rem;">
+</div>
+
+<!-- ── PRIORITY (hidden when Emergency is set) ────────────────────── -->
+<div id="priority-row" style="margin-bottom:1.25rem;">
+<label style="font-weight:600;font-size:0.9rem;display:block;margin-bottom:0.5rem;">Priority</label>
+<div style="display:flex;gap:0.5rem;">
+<button type="button" class="prio-btn" data-p="Low"
+  style="flex:1;padding:0.55rem 0.25rem;border:2px solid #c8e6c9;border-radius:6px;background:#fff;cursor:pointer;font-size:0.85rem;"
+  onclick="setPriority('Low',this)">
+  Low<br><span style="font-size:0.75rem;font-weight:400;color:#555;">Routine</span>
+</button>
+<button type="button" class="prio-btn" data-p="Medium"
+  style="flex:1;padding:0.55rem 0.25rem;border:2px solid #ffe082;border-radius:6px;background:#fff9e6;cursor:pointer;font-size:0.85rem;font-weight:700;"
+  onclick="setPriority('Medium',this)">
+  Medium<br><span style="font-size:0.75rem;font-weight:400;color:#555;">Soon</span>
+</button>
+<button type="button" class="prio-btn" data-p="High"
+  style="flex:1;padding:0.55rem 0.25rem;border:2px solid #ffcc80;border-radius:6px;background:#fff;cursor:pointer;font-size:0.85rem;"
+  onclick="setPriority('High',this)">
+  High<br><span style="font-size:0.75rem;font-weight:400;color:#555;">Today</span>
+</button>
+</div>
+</div>
+
+<!-- ── MORE OPTIONS (collapsed) ───────────────────────────────────── -->
+<details style="margin-bottom:1.25rem;">
+<summary style="cursor:pointer;color:var(--primary);font-size:0.9rem;user-select:none;padding:0.3rem 0;">
+  More options &mdash; category, due date
+</summary>
+<div style="margin-top:0.75rem;display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+<div class="form-group" style="margin-bottom:0;">
+<label>Category</label>
+<select name="category">
+<option value="Corrective"  selected>Corrective</option>
+<option value="Preventive">Preventive</option>
+<option value="Inspection">Inspection</option>
+<option value="Safety">Safety</option>
+<option value="Project">Project</option>
+</select>
+</div>
+<div class="form-group" style="margin-bottom:0;">
+<label>Requested By (date)</label>
+<input type="date" name="due_date">
+</div>
+</div>
+</details>
+
+<!-- ── PHOTO ───────────────────────────────────────────────────────── -->
+<div class="form-group">
+<label style="font-size:1rem;font-weight:600;">Photo <span style="font-weight:400;color:#888;">(optional — snap a pic of the problem)</span></label>
+<input type="file" name="photo" accept="image/*" capture="environment"
+  style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:0.9rem;">
+</div>
+
+<button type="submit" class="btn btn-accent"
+  style="width:100%;padding:0.9rem;font-size:1.05rem;font-weight:700;">
+  Submit Request
+</button>
+<div style="text-align:center;margin-top:0.75rem;">
+<a href="{{ url_for('dashboard') }}" style="color:#999;font-size:0.9rem;">Cancel</a>
+</div>
+
+</form>
+</div>
+
+{% block extra_js %}
+<script>
+var isEmergency = false;
+
+function toggleEmergency() {
+  isEmergency = !isEmergency;
+  var btn    = document.getElementById('emerg-btn');
+  var banner = document.getElementById('emergency-banner');
+  var prow   = document.getElementById('priority-row');
+  var pval   = document.getElementById('priority-val');
+
+  if (isEmergency) {
+    pval.value = 'Emergency';
+    banner.style.display = 'block';
+    btn.style.background = '#c62828';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#c62828';
+    btn.innerHTML = '&#9889;&nbsp; EMERGENCY SET &mdash; tap to undo';
+    prow.style.display = 'none';
+  } else {
+    pval.value = 'Medium';
+    banner.style.display = 'none';
+    btn.style.background = '#fff';
+    btn.style.color = '#c62828';
+    btn.style.borderColor = '#c62828';
+    btn.innerHTML = '&#9889;&nbsp; Is this an EMERGENCY?';
+    prow.style.display = 'block';
+    setPriority('Medium', document.querySelector('[data-p="Medium"]'));
+  }
+}
+
+function setPriority(p, el) {
+  document.getElementById('priority-val').value = p;
+  document.querySelectorAll('.prio-btn').forEach(function(b) {
+    b.style.fontWeight = '400';
+    b.style.background = '#fff';
+    b.style.boxShadow  = 'none';
+  });
+  if (el) {
+    el.style.fontWeight = '700';
+    el.style.background = '#f0f4ff';
+    el.style.boxShadow  = '0 0 0 2px var(--primary)';
+  }
+}
+</script>
+{% endblock %}
+
+{% endblock %}

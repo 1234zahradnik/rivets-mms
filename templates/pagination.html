@@ -1,0 +1,23 @@
+{% if pages > 1 %}
+<div class="pagination">
+{% if page > 1 %}
+<a href="?page={{ page - 1 }}{% if search %}&q={{ search|urlencode }}{% endif %}{% if status %}&status={{ status|urlencode }}{% endif %}{% if priority %}&priority={{ priority|urlencode }}{% endif %}{% if category %}&category={{ category|urlencode }}{% endif %}{% if low_stock %}&low_stock=1{% endif %}">← Prev</a>
+{% endif %}
+
+{% for p in range(1, pages + 1) %}
+{% if p == page %}
+<span class="current">{{ p }}</span>
+{% elif p == 1 or p == pages or (p >= page - 2 and p <= page + 2) %}
+<a href="?page={{ p }}{% if search %}&q={{ search|urlencode }}{% endif %}{% if status %}&status={{ status|urlencode }}{% endif %}{% if priority %}&priority={{ priority|urlencode }}{% endif %}{% if category %}&category={{ category|urlencode }}{% endif %}{% if low_stock %}&low_stock=1{% endif %}">{{ p }}</a>
+{% elif p == page - 3 or p == page + 3 %}
+<span class="ellipsis">...</span>
+{% endif %}
+{% endfor %}
+
+{% if page < pages %}
+<a href="?page={{ page + 1 }}{% if search %}&q={{ search|urlencode }}{% endif %}{% if status %}&status={{ status|urlencode }}{% endif %}{% if priority %}&priority={{ priority|urlencode }}{% endif %}{% if category %}&category={{ category|urlencode }}{% endif %}{% if low_stock %}&low_stock=1{% endif %}">Next →</a>
+{% endif %}
+
+<span class="info">{{ total }} total | Page {{ page }} of {{ pages }}</span>
+</div>
+{% endif %}

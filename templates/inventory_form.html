@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if item else 'Add' }} Inventory Item - Rivet's MMS{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:700px;">
+<h2>{{ 'Edit' if item else 'Add New' }} Inventory Item</h2>
+
+<form method="post">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+<div class="form-group">
+<label>Part Number *</label>
+<input type="text" name="part_number" value="{{ item.part_number if item else '' }}" required placeholder="e.g., 6205-2RS">
+</div>
+<div class="form-group">
+<label>Name *</label>
+<input type="text" name="name" value="{{ item.name if item else '' }}" required>
+</div>
+</div>
+
+<div class="form-group">
+<label>Description</label>
+<textarea name="description" placeholder="What is this part?">{{ item.description if item else '' }}</textarea>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+<div class="form-group">
+<label>Category</label>
+<select name="category">
+<option value="">-- Select --</option>
+<option value="Mechanical" {% if item and item.category == 'Mechanical' %}selected{% endif %}>Mechanical</option>
+<option value="Electrical" {% if item and item.category == 'Electrical' %}selected{% endif %}>Electrical</option>
+<option value="Hydraulic" {% if item and item.category == 'Hydraulic' %}selected{% endif %}>Hydraulic</option>
+<option value="Pneumatic" {% if item and item.category == 'Pneumatic' %}selected{% endif %}>Pneumatic</option>
+<option value="Consumable" {% if item and item.category == 'Consumable' %}selected{% endif %}>Consumable</option>
+<option value="Tool" {% if item and item.category == 'Tool' %}selected{% endif %}>Tool</option>
+<option value="Other" {% if item and item.category == 'Other' %}selected{% endif %}>Other</option>
+</select>
+</div>
+<div class="form-group">
+<label>Storage Location</label>
+<input type="text" name="location" value="{{ item.location if item else '' }}" placeholder="e.g., Shelf B-12">
+</div>
+<div class="form-group">
+<label>UOM</label>
+<select name="unit_of_measure">
+<option value="EA" {% if not item or item.unit_of_measure == 'EA' %}selected{% endif %}>Each (EA)</option>
+<option value="FT" {% if item and item.unit_of_measure == 'FT' %}selected{% endif %}>Foot (FT)</option>
+<option value="GAL" {% if item and item.unit_of_measure == 'GAL' %}selected{% endif %}>Gallon (GAL)</option>
+<option value="LB" {% if item and item.unit_of_measure == 'LB' %}selected{% endif %}>Pound (LB)</option>
+<option value="BOX" {% if item and item.unit_of_measure == 'BOX' %}selected{% endif %}>Box (BOX)</option>
+</select>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+<div class="form-group">
+<label>Qty on Hand</label>
+<input type="number" name="quantity_on_hand" value="{{ item.quantity_on_hand if item else 0 }}">
+</div>
+<div class="form-group">
+<label>Min Stock</label>
+<input type="number" name="min_stock_level" value="{{ item.min_stock_level if item else 0 }}">
+</div>
+<div class="form-group">
+<label>Reorder Point</label>
+<input type="number" name="reorder_point" value="{{ item.reorder_point if item else 0 }}">
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+<div class="form-group">
+<label>Unit Cost ($)</label>
+<input type="number" step="0.01" name="unit_cost" value="{{ item.unit_cost if item else 0 }}">
+</div>
+<div class="form-group">
+<label>Status</label>
+<select name="status">
+<option value="Active" {% if not item or item.status == 'Active' %}selected{% endif %}>Active</option>
+<option value="Discontinued" {% if item and item.status == 'Discontinued' %}selected{% endif %}>Discontinued</option>
+<option value="On Order" {% if item and item.status == 'On Order' %}selected{% endif %}>On Order</option>
+</select>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+<div class="form-group">
+<label>Supplier</label>
+<input type="text" name="supplier" value="{{ item.supplier if item else '' }}">
+</div>
+<div class="form-group">
+<label>Supplier Part #</label>
+<input type="text" name="supplier_part_number" value="{{ item.supplier_part_number if item else '' }}">
+</div>
+</div>
+
+<div class="form-group">
+<label>Used On / Applicable Machines</label>
+<textarea name="used_on" placeholder="e.g., Line 3 Conveyor, Mixer A, Pump #2 — list machines this part fits">{{ item.used_on if item else '' }}</textarea>
+</div>
+
+<div class="form-group">
+<label>Notes</label>
+<textarea name="notes">{{ item.notes if item else '' }}</textarea>
+</div>
+
+<button type="submit" class="btn btn-primary">{{ 'Save Changes' if item else 'Add Item' }}</button>
+<a href="{{ url_for('inventory_list') }}" class="btn" style="background:#eee;color:#333;">Cancel</a>
+</form>
+</div>
+
+{% endblock %}

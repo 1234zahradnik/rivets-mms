@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}{{ item.name }} - Rivet's MMS{% endblock %}
+{% block content %}
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;">
+<div>
+<h2>{{ item.name }}</h2>
+<p style="color:#666;font-size:0.9rem;">{{ item.part_number }} | {{ item.category or 'Uncategorized' }}</p>
+</div>
+<div style="display:flex;gap:0.5rem;align-items:center;">
+<span class="badge">{{ item.status }}</span>
+<a href="{{ url_for('inventory_edit', id=item.id) }}" class="btn btn-sm" style="background:#eee;color:#333;">Edit</a>
+</div>
+<a href="{{ url_for('inventory_edit', id=item.id) }}" class="btn btn-sm btn-primary">Edit Item</a>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+<div class="card">
+<h3>Part Details</h3>
+<table style="font-size:0.9rem;">
+<tr><td><strong>Description:</strong></td><td>{{ item.description or '-' }}</td></tr>
+<tr><td><strong>Storage:</strong></td><td>{{ item.location or '-' }}</td></tr>
+<tr><td><strong>Supplier:</strong></td><td>{{ item.supplier or '-' }} {{ '('+item.supplier_part_number+')' if item.supplier_part_number else '' }}</td></tr>
+<tr><td><strong>UOM:</strong></td><td>{{ item.unit_of_measure }}</td></tr>
+<tr><td><strong>Unit Cost:</strong></td><td>${{ '%.2f'|format(item.unit_cost) }}</td></tr>
+<tr><td><strong>Total Value:</strong></td><td>${{ '%.2f'|format(item.total_value) }}</td></tr>
+<tr><td><strong>Min Stock:</strong></td><td>{{ item.min_stock_level }}</td></tr>
+<tr><td><strong>Reorder Point:</strong></td><td>{{ item.reorder_point }}</td></tr>
+<tr><td><strong>Used On:</strong></td><td>{{ item.used_on or '-' }}</td></tr>
+<tr><td><strong>Notes:</strong></td><td>{{ item.notes or '-' }}</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>Adjust Stock</h3>
+<form method="post" action="{{ url_for('inventory_adjust', id=item.id) }}">
+<div class="form-group">
+<label>Current Qty: <strong>{{ item.quantity_on_hand }}</strong></label>
+</div>
+<div class="form-group">
+<label>New Quantity</label>
+<input type="number" name="quantity" value="{{ item.quantity_on_hand }}" min="0">
+</div>
+<div class="form-group">
+<label>Reason / Notes</label>
+<input type="text" name="notes" placeholder="e.g., Cycle count, received shipment...">
+</div>
+<div class="form-group">
+<label>Performed By</label>
+<input type="text" name="performed_by" placeholder="Your name">
+</div>
+<button type="submit" class="btn btn-primary">Update Stock</button>
+</form>
+</div>
+</div>
+
+<div class="card">
+<h3>Transaction History</h3>
+{% if transactions %}
+<table>
+<thead>
+<tr><th>Date</th><th>Type</th><th>Qty Change</th><th>Ref WO</th><th>Ref PO</th><th>Notes</th><th>By</th></tr>
+</thead>
+<tbody>
+{% for t in transactions %}
+<tr>
+<td>{{ t.created_at.strftime('%m/%d/%Y %H:%M') }}</td>
+<td>{{ t.transaction_type }}</td>
+<td>{% if t.quantity > 0 %}<span style="color:var(--success);">+{{ t.quantity }}</span>{% else %}<span style="color:var(--danger);">{{ t.quantity }}</span>{% endif %}</td>
+<td>{{ t.reference_wo or '-' }}</td>
+<td>{{ t.reference_po or '-' }}</td>
+<td>{{ t.notes or '-' }}</td>
+<td>{{ t.performed_by or '-' }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<p style="color:#666;">No transactions recorded.</p>
+{% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}Work Orders - Rivet's MMS{% endblock %}
+{% block nav_extra %}
+<form method="get" action="{{ url_for('work_orders') }}" class="search-bar">
+<input type="text" name="q" placeholder="Search WOs..." value="{{ search }}">
+<button type="submit">🔍</button>
+</form>
+{% endblock %}
+{% block content %}
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+<h2>Work Orders</h2>
+<div style="display:flex;gap:0.5rem;">
+<a href="{{ url_for('work_orders_export') }}" class="btn btn-sm" style="background:#eee;color:#333;">📥 Export</a>
+<a href="{{ url_for('wo_request') }}" class="btn btn-accent">+ New Request</a>
+</div>
+</div>
+
+<div class="filters">
+<form method="get" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+<input type="hidden" name="q" value="{{ search }}">
+<select name="status">
+<option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
+<option value="Requested" {% if status_filter == 'Requested' %}selected{% endif %}>Requested</option>
+<option value="Approved" {% if status_filter == 'Approved' %}selected{% endif %}>Approved</option>
+<option value="Assigned" {% if status_filter == 'Assigned' %}selected{% endif %}>Assigned</option>
+<option value="In Progress" {% if status_filter == 'In Progress' %}selected{% endif %}>In Progress</option>
+<option value="On Hold" {% if status_filter == 'On Hold' %}selected{% endif %}>On Hold</option>
+<option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed</option>
+<option value="Cancelled" {% if status_filter == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+</select>
+<select name="priority">
+<option value="" {% if not priority_filter %}selected{% endif %}>All Priorities</option>
+<option value="Emergency" {% if priority_filter == 'Emergency' %}selected{% endif %}>Emergency</option>
+<option value="High" {% if priority_filter == 'High' %}selected{% endif %}>High</option>
+<option value="Medium" {% if priority_filter == 'Medium' %}selected{% endif %}>Medium</option>
+<option value="Low" {% if priority_filter == 'Low' %}selected{% endif %}>Low</option>
+</select>
+<button type="submit" class="btn btn-primary btn-sm">Filter</button>
+<a href="{{ url_for('work_orders') }}" class="btn btn-sm" style="background:#eee;color:#333;">Clear</a>
+</form>
+</div>
+
+{% if wos %}
+<table>
+<thead>
+<tr>
+<th>WO#</th>
+<th>Title</th>
+<th>Machine</th>
+<th>Priority</th>
+<th>Status</th>
+<th>Assigned</th>
+<th>Due</th>
+<th>Age</th>
+</tr>
+</thead>
+<tbody>
+{% for wo in wos %}
+{% set age = (today - wo.created_at.date()).days %}
+{% set overdue_row = wo.due_date and wo.due_date < today and wo.status not in ['Completed','Cancelled'] %}
+<tr style="{% if overdue_row %}border-left:3px solid var(--danger);background:#fff5f5;{% elif wo.priority == 'Emergency' and wo.status not in ['Completed','Cancelled'] %}border-left:3px solid var(--danger);{% elif wo.priority == 'High' and wo.status not in ['Completed','Cancelled'] %}border-left:3px solid var(--accent);{% endif %}">
+<td><a href="{{ url_for('wo_detail', id=wo.id) }}">{{ wo.wo_number }}</a></td>
+<td>{{ wo.title[:38] }}{% if wo.title|length > 38 %}...{% endif %}</td>
+<td>{{ wo.machine.name if wo.machine else '—' }}</td>
+<td><span class="badge badge-{{ wo.priority|lower }}">{{ wo.priority }}</span></td>
+<td><span class="badge badge-{{ wo.status|lower|replace(' ', '-') }}">{{ wo.status }}</span></td>
+<td>{{ wo.assigned_to or '—' }}</td>
+<td style="{% if overdue_row %}color:var(--danger);font-weight:600;{% endif %}">{% if wo.due_date %}{{ wo.due_date.strftime('%m/%d/%y') }}{% else %}—{% endif %}</td>
+<td style="color:{% if wo.status not in ['Completed','Cancelled'] and age > 7 %}var(--danger){% elif wo.status not in ['Completed','Cancelled'] and age > 3 %}var(--warning){% else %}#999{% endif %};font-size:0.85rem;">
+{% if wo.status in ['Completed','Cancelled'] %}—{% else %}{{ age }}d{% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% include 'pagination.html' %}
+
+{% else %}
+<p style="color:#666;">No work orders found.</p>
+<div style="margin-top:1rem;"><a href="{{ url_for('wo_request') }}" class="btn btn-accent">Create First Work Order</a></div>
+{% endif %}
+</div>
+
+{% endblock %}

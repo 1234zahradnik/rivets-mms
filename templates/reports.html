@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}Reports - Rivet's MMS{% endblock %}
+{% block content %}
+
+<div class="stats">
+<div class="stat-card">
+<div class="number">{{ total_wos }}</div>
+<div class="label">Total Work Orders</div>
+</div>
+<div class="stat-card {% if pm_compliance is not none %}{% if pm_compliance < 80 %}danger{% elif pm_compliance < 95 %}warning{% endif %}{% endif %}">
+<div class="number">{% if pm_compliance is not none %}{{ pm_compliance }}%{% else %}N/A{% endif %}</div>
+<div class="label">PM Compliance (30d){% if pm_total %} &mdash; {{ pm_done }}/{{ pm_total }}{% endif %}</div>
+</div>
+<div class="stat-card">
+<div class="number">${{ '%.0f'|format(parts_spend) }}</div>
+<div class="label">Parts Spend ($)</div>
+</div>
+<div class="stat-card {% if inv_low_stock_cnt > 0 %}warning{% endif %}">
+<div class="number">{{ inv_low_stock_cnt }}</div>
+<div class="label">Low Stock Alerts</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+
+<div class="card">
+<h3>Work Orders by Status</h3>
+{% if wo_by_status %}
+<table>
+<thead><tr><th>Status</th><th>Count</th><th>%</th></tr></thead>
+<tbody>
+{% for status, count in wo_by_status.items()|sort(attribute='1', reverse=True) %}
+<tr>
+<td><span class="badge badge-{{ status|lower|replace(' ','-') }}">{{ status }}</span></td>
+<td>{{ count }}</td>
+<td style="color:#999;">{{ '%.0f'|format(count / total_wos * 100 if total_wos else 0) }}%</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<p style="color:#666;">No work orders yet.</p>
+{% endif %}
+</div>
+
+<div class="card">
+<h3>Open WO Age</h3>
+{% if age_buckets %}
+<table>
+<thead><tr><th>Age Range</th><th>Count</th></tr></thead>
+<tbody>
+{% for bucket, count in age_buckets.items() %}
+<tr>
+<td>{{ bucket }}</td>
+<td style="{% if bucket == '> 7 days' and count > 0 %}color:var(--danger);font-weight:600;{% elif bucket == '4–7 days' and count > 0 %}color:var(--warning);font-weight:600;{% endif %}">{{ count }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+<p style="color:#666;font-size:0.8rem;margin-top:0.5rem;">Open WOs only. &gt;7 days without action may need follow-up.</p>
+{% else %}
+<p style="color:#666;">No open work orders.</p>
+{% endif %}
+</div>
+
+<div class="card">
+<h3>Work Orders by Category</h3>
+{% if wo_by_category %}
+<table>
+<thead><tr><th>Category</th><th>Count</th><th>%</th></tr></thead>
+<tbody>
+{% for cat, count in wo_by_category.items()|sort(attribute='1', reverse=True) %}
+<tr>
+<td>{{ cat }}</td>
+<td>{{ count }}</td>
+<td style="color:#999;">{{ '%.0f'|format(count / total_wos * 100 if total_wos else 0) }}%</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<p style="color:#666;">No work orders yet.</p>
+{% endif %}
+</div>
+
+<div class="card">
+<h3>MTTR — Mean Time To Repair</h3>
+<p style="color:#666;font-size:0.82rem;margin-bottom:0.5rem;">Corrective &amp; Safety WOs only. Hours from start to close.</p>
+{% if mttr_data %}
+<table>
+<thead><tr><th>Machine</th><th>WOs</th><th>Avg (hrs)</th><th>Total hrs</th></tr></thead>
+<tbody>
+{% for row in mttr_data %}
+<tr>
+<td>{{ row.machine }}</td>
+<td>{{ row.wo_count }}</td>
+<td style="{% if row.avg_mttr_hrs > 8 %}color:var(--danger);font-weight:600;{% elif row.avg_mttr_hrs > 4 %}color:var(--warning);font-weight:600;{% endif %}">{{ row.avg_mttr_hrs }}</td>
+<td>{{ row.total_hrs }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<p style="color:#666;">No completed corrective WOs with timing data yet.</p>
+{% endif %}
+</div>
+
+<div class="card">
+<h3>Top Machines by WO Volume</h3>
+{% if top_machines %}
+<table>
+<thead><tr><th>Machine</th><th>Total WOs</th></tr></thead>
+<tbody>
+{% for row in top_machines %}
+<tr><td>{{ row.machine }}</td><td>{{ row.count }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<p style="color:#666;">No work orders linked to machines yet.</p>
+{% endif %}
+</div>
+
+<div class="card">
+<h3>Inventory Valuation by Category</h3>
+<table>
+<thead><tr><th>Category</th><th>SKUs</th><th>Value</th></tr></thead>
+<tbody>
+{% for cat, data in inv_by_category.items()|sort(attribute='1.value', reverse=True) %}
+<tr><td>{{ cat }}</td><td>{{ data.count }}</td><td>${{ '%.2f'|format(data.value) }}</td></tr>
+{% endfor %}
+<tr style="font-weight:700;background:#f0f0f0;">
+<td>Total</td><td>{{ total_inv_items }}</td><td>${{ '%.2f'|format(inv_total_value) }}</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+</div>
+{% endblock %}

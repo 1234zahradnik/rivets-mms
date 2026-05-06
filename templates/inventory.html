@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Inventory - Rivet's MMS{% endblock %}
+{% block nav_extra %}
+<form method="get" action="{{ url_for('inventory_list') }}" class="search-bar">
+<input type="text" name="q" placeholder="Search parts..." value="{{ search }}">
+<button type="submit">🔍</button>
+</form>
+{% endblock %}
+{% block content %}
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+<h2>Inventory / Spare Parts</h2>
+<div style="display:flex;gap:0.5rem;">
+<a href="{{ url_for('inventory_export') }}" class="btn btn-sm" style="background:#eee;color:#333;">📥 Export</a>
+<a href="{{ url_for('inventory_add') }}" class="btn btn-accent">+ Add Part</a>
+</div>
+</div>
+
+<div class="filters">
+<a href="{{ url_for('inventory_list', low_stock=1, q=search, category=category) }}"
+   class="btn btn-sm" style="background:{% if low_stock %}#c62828;color:#fff{% else %}#ffcdd2;color:#c62828{% endif %};">
+  ⚠ Low Stock Only
+</a>
+<form method="get" style="display:inline;">
+<input type="hidden" name="q" value="{{ search }}">
+<input type="hidden" name="low_stock" value="{{ '1' if low_stock else '' }}">
+<select name="category" onchange="this.form.submit()">
+<option value="" {% if not category %}selected{% endif %}>All Categories</option>
+{% for c in categories %}
+<option value="{{ c }}" {% if category == c %}selected{% endif %}>{{ c }}</option>
+{% endfor %}
+</select>
+</form>
+{% if search or low_stock or category %}
+<a href="{{ url_for('inventory_list') }}" class="btn btn-sm" style="background:#eee;color:#333;">✕ Clear Filters</a>
+{% endif %}
+</div>
+
+{% if items %}
+<table>
+<thead>
+<tr>
+<th>Part #</th>
+<th>Name</th>
+<th>Category</th>
+<th>Location</th>
+<th>Qty</th>
+<th>Min</th>
+<th>Unit Cost</th>
+<th>Supplier</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+{% for item in items %}
+<tr {% if item.is_low_stock %}style="background:#ffebee;"{% endif %}>
+<td><a href="{{ url_for('inventory_detail', id=item.id) }}">{{ item.part_number }}</a></td>
+<td>{{ item.name[:30] }}</td>
+<td>{{ item.category or '-' }}</td>
+<td>{{ item.location or '-' }}</td>
+<td>{% if item.is_low_stock %}<strong style="color:var(--danger);">{{ item.quantity_on_hand }}</strong>{% else %}{{ item.quantity_on_hand }}{% endif %}</td>
+<td>{{ item.min_stock_level }}</td>
+<td>${{ '%.2f'|format(item.unit_cost) }}</td>
+<td>{{ item.supplier or '-' }}</td>
+<td>{{ item.status }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% include 'pagination.html' %}
+
+{% else %}
+<p style="color:#666;">No inventory items found.</p>
+<a href="{{ url_for('inventory_add') }}" class="btn btn-accent">Add First Part</a>
+{% endif %}
+</div>
+
+{% endblock %}

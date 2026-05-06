@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}Users - Rivet's MMS{% endblock %}
+{% block content %}
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+<div>
+<h2>Team Members</h2>
+<p style="color:#666;font-size:0.88rem;margin-top:0.25rem;">{{ users|length }} user{{ 's' if users|length != 1 }}</p>
+</div>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Email</th>
+<th>Role</th>
+<th>Status</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody>
+{% for u in users %}
+<tr style="{% if not u.is_active %}opacity:0.5;{% endif %}">
+<td>
+  <strong>{{ u.display_name or u.username }}</strong>
+  {% if u.id == current_user.id %}<span style="font-size:0.75rem;color:#888;"> (you)</span>{% endif %}
+</td>
+<td style="font-size:0.85rem;color:#555;">{{ u.email }}</td>
+<td>
+  <span class="badge" style="background:{% if u.role == 'admin' %}#e3f2fd;color:#1565c0{% elif u.role == 'manager' %}#e8f5e9;color:#2e7d32{% elif u.role == 'technician' %}#fff3e0;color:#e65100{% else %}#f3e5f5;color:#7b1fa2{% endif %};">
+    {{ u.role|capitalize }}
+  </span>
+</td>
+<td>
+  <span class="badge {% if u.is_active %}badge-completed{% else %}badge-cancelled{% endif %}">
+    {{ 'Active' if u.is_active else 'Inactive' }}
+  </span>
+</td>
+<td style="white-space:nowrap;">
+  {% if u.id != current_user.id %}
+  <form method="post" action="{{ url_for('admin_users_toggle', id=u.id) }}" style="display:inline;">
+    <button type="submit" class="btn btn-sm" style="background:#eee;color:#333;">
+      {{ 'Deactivate' if u.is_active else 'Activate' }}
+    </button>
+  </form>
+  {% endif %}
+  <button type="button" class="btn btn-sm" style="background:#eee;color:#333;"
+    onclick="document.getElementById('reset-{{ u.id }}').style.display='block';this.style.display='none'">
+    Reset PW
+  </button>
+  <form id="reset-{{ u.id }}" method="post" action="{{ url_for('admin_users_reset_password', id=u.id) }}"
+    style="display:none;margin-top:0.5rem;display:none;">
+    <input type="password" name="password" placeholder="New password" style="padding:0.3rem;font-size:0.85rem;width:130px;">
+    <button type="submit" class="btn btn-sm btn-primary">Set</button>
+  </form>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+<div class="card" style="max-width:520px;">
+<h2>Add Team Member</h2>
+<form method="post" action="{{ url_for('admin_users_add') }}" style="margin-top:1rem;">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+<div class="form-group">
+<label>Name *</label>
+<input type="text" name="username" required placeholder="John Smith">
+</div>
+<div class="form-group">
+<label>Email *</label>
+<input type="email" name="email" required placeholder="john@company.com">
+</div>
+<div class="form-group">
+<label>Role</label>
+<select name="role">
+<option value="technician">Technician</option>
+<option value="manager">Manager</option>
+<option value="admin">Admin</option>
+<option value="requester">Requester (read + submit only)</option>
+</select>
+</div>
+<div class="form-group">
+<label>Temporary Password *</label>
+<input type="text" name="password" required placeholder="They can change it later">
+</div>
+</div>
+<button type="submit" class="btn btn-primary">Add Member</button>
+</form>
+</div>
+
+<div class="card" style="max-width:520px;background:#f9f9f9;">
+<h3 style="font-size:0.95rem;margin-bottom:0.5rem;color:#444;">Role Permissions</h3>
+<table style="font-size:0.85rem;">
+<thead><tr><th>Role</th><th>View</th><th>Submit WOs</th><th>Update/Close WOs</th><th>Add Machines/Parts</th><th>Manage Users</th></tr></thead>
+<tbody>
+<tr><td>Requester</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Technician</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+<tr><td>Manager</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>Admin</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+</tbody>
+</table>
+</div>
+
+{% endblock %}
