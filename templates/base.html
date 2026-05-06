@@ -108,13 +108,14 @@ tr:hover{background:#fafbff;}
 /* ── Voice Input ─────────────────────────────────────────────────────── */
 .voice-wrap{display:flex;align-items:flex-start;gap:0.4rem;}
 .voice-wrap .voice-field{flex:1;min-width:0;}
-.voice-btn{flex-shrink:0;background:#e8eaf6;border:1px solid #9fa8da;border-radius:6px;padding:0.45rem 0.6rem;cursor:pointer;font-size:1rem;line-height:1;transition:all 0.15s;color:#1a237e;margin-top:0;}
-.voice-btn:hover{background:#c5cae9;}
-.voice-btn.recording{background:#ffebee;border-color:#e57373;color:#c62828;}
+.voice-btn{flex-shrink:0;background:#3949ab;border:none;border-radius:6px;padding:0.5rem 0.65rem;cursor:pointer;font-size:1.05rem;line-height:1;transition:all 0.15s;color:#fff;margin-top:0;box-shadow:0 2px 4px rgba(0,0,0,0.15);}
+.voice-btn:hover{background:#283593;box-shadow:0 3px 8px rgba(0,0,0,0.2);}
+.voice-btn.recording{background:#c62828;box-shadow:0 0 0 3px rgba(198,40,40,0.3);}
 .voice-btn.recording .mic-icon{display:inline-block;animation:mic-pulse 0.7s infinite;}
-@keyframes mic-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.25);}}
+@keyframes mic-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.3);}}
 /* ── Tour System ─────────────────────────────────────────────────────── */
-.tour-highlight{outline:3px solid var(--accent)!important;outline-offset:3px!important;border-radius:6px!important;box-shadow:0 0 0 9999px rgba(0,0,0,0.55)!important;position:relative!important;z-index:9001!important;}
+.tour-highlight{outline:3px solid var(--accent)!important;outline-offset:4px!important;border-radius:8px!important;box-shadow:0 0 0 9999px rgba(0,0,0,0.58)!important;position:relative!important;z-index:9001!important;background:var(--card)!important;}
+.tour-highlight .voice-btn{opacity:1!important;filter:none!important;}
 .tour-box{position:fixed;z-index:9002;background:#1a237e;color:#fff;border-radius:12px;padding:1.1rem 1.25rem;max-width:310px;width:calc(100vw - 2rem);box-shadow:0 8px 28px rgba(0,0,0,0.35);left:50%;transform:translateX(-50%);transition:top 0.25s;}
 .tour-box .tour-step-label{font-size:0.75rem;opacity:0.65;margin-bottom:0.2rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;}
 .tour-box h4{font-size:1rem;margin-bottom:0.35rem;color:#fff;}
@@ -262,19 +263,20 @@ document.querySelectorAll('form').forEach(function(form){
   var steps = window.tourSteps;
   var cur = 0;
   var box = null;
-  var prevEl = null;
+  var prevHighlight = null;
+  var hasMic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
-  // Inject "Guide Me" button before the first form-group
+  // Inject "Guide Me" button
   var firstGroup = document.querySelector('.form-group, form');
   if(firstGroup){
     var card = firstGroup.closest('.card');
     if(card){
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'guide-btn';
-      btn.innerHTML = '🧭 &nbsp;Guide Me Through This Form';
-      card.insertBefore(btn, card.querySelector('.form-group, form'));
-      btn.addEventListener('click', startTour);
+      var guideBtn = document.createElement('button');
+      guideBtn.type = 'button';
+      guideBtn.className = 'guide-btn';
+      guideBtn.innerHTML = '🧭 &nbsp;Guide Me Through This Form';
+      card.insertBefore(guideBtn, card.querySelector('.form-group, form'));
+      guideBtn.addEventListener('click', startTour);
     }
   }
 
@@ -287,29 +289,40 @@ document.querySelectorAll('form').forEach(function(form){
     if(!el){ cur++; showStep(); return; }
 
     // Remove previous highlight
-    if(prevEl) prevEl.classList.remove('tour-highlight');
-    prevEl = el;
+    if(prevHighlight) prevHighlight.classList.remove('tour-highlight');
+
+    // Highlight the whole voice-wrap if present (keeps mic button bright)
+    var highlightEl = el.closest('.voice-wrap') || el;
+    prevHighlight = highlightEl;
+    highlightEl.classList.add('tour-highlight');
 
     // Expand <details> parents
     var det = el.closest('details');
     if(det) det.open = true;
 
-    // Scroll & highlight
+    // Scroll element to center of screen, then position the box
     el.scrollIntoView({behavior:'smooth', block:'center'});
-    el.classList.add('tour-highlight');
     el.focus();
 
-    // Build/update tooltip box
+    // Build tooltip
     if(!box){
       box = document.createElement('div');
       box.className = 'tour-box';
       document.body.appendChild(box);
     }
+
+    // Auto-add mic hint for text/textarea fields when mic is available
+    var isMicField = hasMic && (el.tagName === 'TEXTAREA' || el.type === 'text');
+    var micNote = isMicField
+      ? '<div style="margin-top:0.5rem;padding:0.4rem 0.6rem;background:rgba(255,255,255,0.12);border-radius:6px;font-size:0.8rem;">🎤 <strong>Tip:</strong> Tap the microphone button to speak your answer instead of typing.</div>'
+      : '';
+
     box.innerHTML =
       '<div class="tour-step-label">Step '+(cur+1)+' of '+steps.length+'</div>'+
       '<h4>'+s.title+'</h4>'+
       '<p>'+s.text+'</p>'+
-      '<div class="tour-btns">'+
+      micNote+
+      '<div class="tour-btns" style="margin-top:0.75rem;">'+
         '<button class="tour-skip">Skip tour</button>'+
         '<span class="tour-prog">'+(cur+1)+' / '+steps.length+'</span>'+
         '<button class="tour-next">'+(cur===steps.length-1?'✅ Done':'Next →')+'</button>'+
@@ -317,22 +330,32 @@ document.querySelectorAll('form').forEach(function(form){
     box.querySelector('.tour-next').onclick = function(){ cur++; showStep(); };
     box.querySelector('.tour-skip').onclick = endTour;
 
-    // Position: above or below the element
+    // Position box just below (or above) the highlighted element.
+    // Uses only viewport coords — no scrollY — because box is position:fixed.
     setTimeout(function(){
       var rect = el.getBoundingClientRect();
-      var spaceBelow = window.innerHeight - rect.bottom;
-      if(spaceBelow > 180){
-        box.style.top = (rect.bottom + window.scrollY + 12)+'px';
+      var boxH = box.offsetHeight;
+      var gap = 12;
+      var spaceBelow = window.innerHeight - rect.bottom - gap;
+      var spaceAbove = rect.top - gap;
+
+      if(spaceBelow >= boxH || spaceBelow >= spaceAbove){
+        // Place below the field
+        var top = rect.bottom + gap;
+        // Clamp so it doesn't go off screen bottom
+        top = Math.min(top, window.innerHeight - boxH - 8);
+        box.style.top = Math.max(8, top) + 'px';
       } else {
-        box.style.top = (rect.top + window.scrollY - box.offsetHeight - 12)+'px';
+        // Place above the field
+        box.style.top = Math.max(8, rect.top - boxH - gap) + 'px';
       }
-    }, 50);
+    }, 300); // wait for smooth scroll to settle
   }
 
   function endTour(){
-    if(prevEl) prevEl.classList.remove('tour-highlight');
+    if(prevHighlight) prevHighlight.classList.remove('tour-highlight');
     if(box){ box.remove(); box = null; }
-    prevEl = null;
+    prevHighlight = null;
   }
 })();
 </script>
