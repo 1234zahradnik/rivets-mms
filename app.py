@@ -467,6 +467,55 @@ def work_orders():
                            search=search, page=page, pages=pages, total=total)
 
 
+@app.route('/report/<slug>', methods=['GET', 'POST'])
+def public_report(slug):
+    """Anonymous WO submission — no login required. Share the URL with plant floor."""
+    company = Company.query.filter_by(slug=slug, is_active=True).first_or_404()
+    machines = Machine.query.filter_by(company_id=company.id).order_by(Machine.name).all()
+
+    if request.method == 'POST':
+        max_id = (db.session.query(db.func.max(WorkOrder.id))
+                  .filter_by(company_id=company.id).scalar()) or 0
+        from datetime import datetime as _dt
+        wo_num = f"WO-{_dt.now().year}-{max_id + 1:05d}"
+        priority = request.form.get('priority', 'Medium')
+        machine_id = safe_int(request.form.get('machine_id')) or None
+
+        wo = WorkOrder(
+            company_id=company.id,
+            wo_number=wo_num,
+            title=request.form['title'],
+            description=request.form.get('description', ''),
+            machine_id=machine_id,
+            requester_name=request.form.get('requester_name', 'Anonymous'),
+            priority=priority,
+            category='Corrective'
+        )
+        db.session.add(wo)
+        db.session.flush()
+        wo.wo_number = f"WO-{_dt.now().year}-{wo.id:05d}"
+
+        f = request.files.get('photo')
+        if f and f.filename:
+            ext = os.path.splitext(f.filename)[1].lower()
+            if ext in ALLOWED_EXTENSIONS:
+                fname = secure_filename(f"{wo.wo_number}{ext}")
+                f.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                wo.attachment = fname
+
+        if priority == 'Emergency' and machine_id:
+            m = Machine.query.filter_by(id=machine_id, company_id=company.id).first()
+            if m:
+                m.status = 'Down'
+
+        db.session.commit()
+        return render_template('public_report_done.html', company=company, wo=wo)
+
+    machine_id_preselect = safe_int(request.args.get('machine_id'))
+    return render_template('public_report.html', company=company, machines=machines,
+                           preselect_machine=machine_id_preselect)
+
+
 @app.route('/work-orders/request', methods=['GET', 'POST'])
 @login_required
 def wo_request():

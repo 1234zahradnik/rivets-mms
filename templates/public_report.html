@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report a Problem — {{ company.name }}</title>
+<style>
+:root{--primary:#1a237e;--accent:#ff6f00;--danger:#c62828;--border:#ddd;}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+body{background:#dce6f5;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:1rem;}
+.card{background:#fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.12);padding:1.5rem;width:100%;max-width:560px;margin-top:1rem;}
+h1{color:var(--primary);font-size:1.4rem;margin-bottom:0.2rem;}
+.sub{color:#666;font-size:0.9rem;margin-bottom:1.5rem;}
+.form-group{margin-bottom:1.1rem;}
+.form-group label{display:block;font-weight:600;font-size:0.9rem;margin-bottom:0.35rem;}
+.form-group .hint{display:block;font-size:0.8rem;color:#777;margin-top:0.2rem;font-weight:400;}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:0.7rem 0.85rem;border:1px solid var(--border);border-radius:8px;font-size:1rem;}
+.form-group textarea{min-height:80px;resize:vertical;}
+.prio-row{display:flex;gap:0.5rem;margin-bottom:1.25rem;}
+.prio-btn{flex:1;padding:0.6rem 0.25rem;border-radius:8px;border:2px solid #ddd;background:#fff;cursor:pointer;font-size:0.9rem;font-weight:500;text-align:center;}
+.prio-btn.sel{font-weight:700;}
+.prio-low.sel{border-color:#2e7d32;background:#e8f5e9;color:#2e7d32;}
+.prio-med.sel{border-color:#f57f17;background:#fff8e1;color:#f57f17;}
+.prio-high.sel{border-color:#e65100;background:#fff3e0;color:#e65100;}
+.emerg-btn{width:100%;padding:1rem;background:#fff;border:2px solid var(--danger);color:var(--danger);border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;margin-bottom:1.25rem;}
+.emerg-btn.active{background:var(--danger);color:#fff;}
+.emerg-banner{background:var(--danger);color:#fff;padding:0.8rem;border-radius:8px;text-align:center;font-weight:700;margin-bottom:1rem;display:none;}
+.submit-btn{width:100%;padding:1rem;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:1.05rem;font-weight:700;cursor:pointer;margin-top:0.5rem;}
+.submit-btn:active{opacity:0.85;}
+.photo-input{width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px;font-size:0.95rem;}
+.logo{font-size:1.5rem;margin-bottom:0.5rem;text-align:center;}
+</style>
+</head>
+<body>
+
+<div class="card">
+<div class="logo">🔧</div>
+<h1>Report a Problem</h1>
+<p class="sub">{{ company.name }} — Maintenance Team</p>
+
+<div id="emerg-banner" class="emerg-banner">⚠️ EMERGENCY — Maintenance will be alerted immediately</div>
+
+<button type="button" class="emerg-btn" id="emerg-btn" onclick="toggleEmerg()">⚡ Is this an EMERGENCY?</button>
+
+<form method="post" enctype="multipart/form-data">
+<input type="hidden" name="priority" id="prio-val" value="Medium">
+
+<div class="form-group">
+<label>What's the problem? *</label>
+<input type="text" name="title" required placeholder="e.g., Conveyor belt stopped on Line 3">
+</div>
+
+<div class="form-group">
+<label>Which machine? <span style="font-weight:400;color:#888;">(optional)</span></label>
+<select name="machine_id">
+<option value="">— Not sure / Not a machine —</option>
+{% for m in machines %}
+<option value="{{ m.id }}" {% if preselect_machine == m.id %}selected{% endif %}>
+  {{ m.name }}{% if m.location %} — {{ m.location }}{% endif %}
+</option>
+{% endfor %}
+</select>
+</div>
+
+<div class="form-group">
+<label>Describe what you saw <span style="font-weight:400;color:#888;">(optional but helpful)</span></label>
+<textarea name="description" placeholder="What did you see, hear, or smell? When did it start?"></textarea>
+</div>
+
+<div class="form-group">
+<label>Your name <span style="font-weight:400;color:#888;">(optional)</span></label>
+<input type="text" name="requester_name" placeholder="So we know who to follow up with">
+</div>
+
+<div id="prio-section">
+<label style="display:block;font-weight:600;font-size:0.9rem;margin-bottom:0.5rem;">How urgent?</label>
+<div class="prio-row">
+<button type="button" class="prio-btn prio-low" onclick="setPrio('Low',this)">Low<br><span style="font-size:0.78rem;font-weight:400;">Can wait</span></button>
+<button type="button" class="prio-btn prio-med sel" onclick="setPrio('Medium',this)">Medium<br><span style="font-size:0.78rem;font-weight:400;">Soon</span></button>
+<button type="button" class="prio-btn prio-high" onclick="setPrio('High',this)">High<br><span style="font-size:0.78rem;font-weight:400;">Today</span></button>
+</div>
+</div>
+
+<div class="form-group">
+<label>Photo <span style="font-weight:400;color:#888;">(optional)</span></label>
+<input type="file" name="photo" accept="image/*" capture="environment" class="photo-input">
+</div>
+
+<button type="submit" class="submit-btn">📨 Submit to Maintenance</button>
+</form>
+</div>
+
+<script>
+var isEmerg = false;
+function toggleEmerg(){
+  isEmerg = !isEmerg;
+  var btn = document.getElementById('emerg-btn');
+  var banner = document.getElementById('emerg-banner');
+  var prio = document.getElementById('prio-section');
+  if(isEmerg){
+    btn.classList.add('active');
+    btn.textContent = '⚡ EMERGENCY SET — tap to undo';
+    banner.style.display = 'block';
+    document.getElementById('prio-val').value = 'Emergency';
+    prio.style.display = 'none';
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '⚡ Is this an EMERGENCY?';
+    banner.style.display = 'none';
+    document.getElementById('prio-val').value = 'Medium';
+    prio.style.display = 'block';
+  }
+}
+function setPrio(p, el){
+  document.getElementById('prio-val').value = p;
+  document.querySelectorAll('.prio-btn').forEach(function(b){ b.classList.remove('sel'); });
+  el.classList.add('sel');
+}
+</script>
+</body>
+</html>
