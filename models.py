@@ -183,6 +183,10 @@ class InventoryItem(db.Model):
     )
 
     @property
+    def is_low_stock(self):
+        return self.quantity_on_hand <= self.min_stock_level
+
+    @property
     def total_value(self):
         return self.quantity_on_hand * self.unit_cost
 
