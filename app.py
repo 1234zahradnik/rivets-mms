@@ -470,6 +470,19 @@ def machine_detail(id):
     return render_template('machine_detail.html', machine=machine, history=history, wos=wos)
 
 
+@app.route('/machines/<int:id>/set-status', methods=['POST'])
+@login_required
+def machine_set_status(id):
+    require_manager()
+    machine = cget(Machine, id)
+    new_status = request.form.get('status', 'Active')
+    if new_status in ('Active', 'Down', 'Decommissioned'):
+        machine.status = new_status
+        db.session.commit()
+        flash(f'{machine.name} marked {new_status}.', 'success')
+    return redirect(request.referrer or url_for('dashboard'))
+
+
 @app.route('/machines/<int:id>/history/add', methods=['POST'])
 @login_required
 def machine_history_add(id):

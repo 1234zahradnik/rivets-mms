@@ -26,11 +26,22 @@
 {% endif %}
 
 {% if machines_down_list %}
-<div class="alert alert-danger" style="border-left:4px solid var(--danger);display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
-<strong>&#9888; Machines Down:</strong>
+<div class="alert alert-danger" style="border-left:4px solid var(--danger);flex-wrap:wrap;gap:0.5rem;">
+<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;width:100%;">
+<strong style="white-space:nowrap;">&#9888; Machines Down:</strong>
 {% for m in machines_down_list %}
-<a href="{{ url_for('machine_detail', id=m.id) }}" style="color:var(--danger);font-weight:600;">{{ m.name }}</a>{% if not loop.last %}, {% endif %}
+<span style="display:inline-flex;align-items:center;gap:0.3rem;background:#ffebee;border:1px solid #ffcdd2;border-radius:6px;padding:0.2rem 0.5rem;">
+  <a href="{{ url_for('machine_detail', id=m.id) }}" style="color:var(--danger);font-weight:600;font-size:0.9rem;">{{ m.name }}</a>
+  {% if current_user.is_manager_or_above %}
+  <form method="post" action="{{ url_for('machine_set_status', id=m.id) }}" style="display:inline;">
+  <input type="hidden" name="status" value="Active">
+  <button type="submit" title="Mark as Active / back online"
+    style="background:#2e7d32;color:#fff;border:none;border-radius:4px;padding:0.1rem 0.4rem;font-size:0.75rem;cursor:pointer;line-height:1.4;">✓ Fixed</button>
+  </form>
+  {% endif %}
+</span>
 {% endfor %}
+</div>
 </div>
 {% endif %}
 

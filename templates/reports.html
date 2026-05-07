@@ -3,10 +3,21 @@
 {% block extra_css %}
 <style>
 .chart-wrap{position:relative;height:220px;}
+@media print{
+  header,nav,.report-btn,.no-print{display:none!important;}
+  body{background:#fff!important;}
+  .card{box-shadow:none!important;border:1px solid #ccc!important;}
+  .container{padding:0!important;}
+  .two-col{grid-template-columns:1fr 1fr!important;}
+}
 </style>
 {% endblock %}
 {% block content %}
 
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+<h2 style="margin:0;">📈 Reports</h2>
+<button onclick="window.print()" class="btn btn-sm no-print" style="background:#eee;color:#333;">🖨️ Print Report</button>
+</div>
 <div class="stats">
 <div class="stat-card">
 <div class="number">{{ total_wos }}</div>
