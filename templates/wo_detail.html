@@ -130,7 +130,7 @@
 <form method="post" action="{{ url_for('wo_close', id=wo.id) }}">
 <h3 style="font-size:1rem;color:var(--success);margin-bottom:0.5rem;">Close Out Work Order</h3>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+<div class="two-col">
 <div class="form-group">
 <label>Actual Hours</label>
 <input type="number" step="0.5" name="actual_hours" value="{{ wo.estimated_hours or '' }}">

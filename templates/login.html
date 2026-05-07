@@ -45,14 +45,27 @@ input:focus{outline:none;border-color:#1a237e;}
 </div>
 <div class="form-group">
 <label for="password">Password</label>
+<div style="position:relative;">
 <input type="password" id="password" name="password" required autocomplete="current-password"
-  placeholder="••••••••">
+  placeholder="••••••••" style="padding-right:2.6rem;">
+<button type="button" onclick="togglePw()" tabindex="-1"
+  style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;color:#999;padding:0;line-height:1;"
+  id="pw-eye" title="Show/hide password">👁</button>
+</div>
 </div>
 <label class="remember">
 <input type="checkbox" name="remember"> Keep me logged in
 </label>
 <button type="submit" class="btn">Log In</button>
 </form>
+<script>
+function togglePw(){
+  var inp = document.getElementById('password');
+  var eye = document.getElementById('pw-eye');
+  if(inp.type==='password'){ inp.type='text'; eye.style.color='#1a237e'; }
+  else { inp.type='password'; eye.style.color='#999'; }
+}
+</script>
 </div>
 
 <div class="footer-link">

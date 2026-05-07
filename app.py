@@ -365,13 +365,29 @@ def dashboard():
             WorkOrder.status.in_(active_statuses)
         ).order_by(WorkOrder.created_at.desc()).limit(10).all()
 
+    # Team workload — for managers: count open WOs per person
+    team_workload = []
+    if current_user.is_manager_or_above:
+        techs = cq(User).filter(User.is_active == True).order_by(User.display_name).all()
+        for t in techs:
+            name = t.display_name or t.username
+            count = cq(WorkOrder).filter(
+                WorkOrder.assigned_to.ilike(name),
+                WorkOrder.status.in_(active_statuses)
+            ).count()
+            team_workload.append({'name': name, 'role': t.role, 'count': count})
+        # Only show if there's at least some assignments
+        if not any(t['count'] > 0 for t in team_workload):
+            team_workload = []
+
     return render_template('dashboard.html',
                            open_wos=open_wos, overdue=overdue,
                            low_stock=low_stock, machines_down=machines_down,
                            machines_down_list=machines_down_list,
                            emergency_wos=emergency_wos,
                            recent_wos=recent_wos, recent_history=recent_history,
-                           upcoming_pm=upcoming_pm, my_jobs=my_jobs)
+                           upcoming_pm=upcoming_pm, my_jobs=my_jobs,
+                           team_workload=team_workload)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -472,6 +488,60 @@ def machine_history_add(id):
     return redirect(url_for('machine_detail', id=id))
 
 
+@app.route('/machines/import', methods=['GET', 'POST'])
+@login_required
+def machines_import():
+    require_manager()
+    if request.method == 'POST':
+        f = request.files.get('csv_file')
+        if not f or not f.filename.endswith('.csv'):
+            flash('Please upload a .csv file.', 'danger')
+            return redirect(url_for('machines_import'))
+
+        import csv, io
+        text   = f.read().decode('utf-8-sig')
+        reader = csv.DictReader(io.StringIO(text))
+        added = skipped = 0
+        for i, row in enumerate(reader, start=2):
+            tag  = (row.get('asset_tag') or row.get('Asset Tag') or '').strip().upper()
+            name = (row.get('name') or row.get('Name') or row.get('Machine Name') or '').strip()
+            if not tag or not name:
+                skipped += 1
+                continue
+            if cq(Machine).filter_by(asset_tag=tag).first():
+                skipped += 1
+                continue
+            m = Machine(
+                company_id    = current_user.company_id,
+                asset_tag     = tag,
+                name          = name,
+                location      = (row.get('location') or row.get('Location') or '').strip(),
+                manufacturer  = (row.get('manufacturer') or row.get('Manufacturer') or '').strip(),
+                model_number  = (row.get('model_number') or row.get('Model') or '').strip(),
+                serial_number = (row.get('serial_number') or row.get('Serial') or '').strip(),
+                install_date  = safe_date(row.get('install_date') or row.get('Install Date') or ''),
+                criticality   = (row.get('criticality') or row.get('Criticality') or 'Medium').strip() or 'Medium',
+                notes         = (row.get('notes') or row.get('Notes') or '').strip()
+            )
+            db.session.add(m)
+            added += 1
+        db.session.commit()
+        flash(f'Import complete: {added} machines added, {skipped} skipped.', 'success' if added else 'warning')
+        return redirect(url_for('machines_list'))
+    return render_template('machines_import.html')
+
+
+@app.route('/machines/import-template')
+@login_required
+def machines_import_template():
+    csv_content = 'asset_tag,name,location,manufacturer,model_number,serial_number,install_date,criticality,notes\n'
+    csv_content += 'M-001,Conveyor Line 3,Production Floor,Hytrol,Model XYZ,SN-12345,2020-01-15,High,Main assembly conveyor\n'
+    resp = make_response(csv_content)
+    resp.headers['Content-Type'] = 'text/csv'
+    resp.headers['Content-Disposition'] = 'attachment; filename=machines_template.csv'
+    return resp
+
+
 @app.route('/machines/export')
 @login_required
 def machines_export():
@@ -519,9 +589,10 @@ def work_orders():
         )
     if search:
         like = f'%{search}%'
-        query = query.filter(
+        query = query.outerjoin(Machine, WorkOrder.machine_id == Machine.id).filter(
             db.or_(WorkOrder.wo_number.ilike(like), WorkOrder.title.ilike(like),
-                   WorkOrder.assigned_to.ilike(like))
+                   WorkOrder.assigned_to.ilike(like), Machine.name.ilike(like),
+                   WorkOrder.description.ilike(like))
         )
 
     wos, total, pages = paginate(query.order_by(WorkOrder.created_at.desc()), page, app.config.get('PER_PAGE', 25))
@@ -878,6 +949,11 @@ def notifications():
         Notification.company_id == current_user.company_id,
         db.or_(Notification.user_id == current_user.id, Notification.user_id == None)
     ).order_by(Notification.created_at.desc()).limit(50).all()
+    # Auto-mark all as read on page visit
+    unread_ids = [n.id for n in notifs if not n.is_read]
+    if unread_ids:
+        Notification.query.filter(Notification.id.in_(unread_ids)).update({'is_read': True}, synchronize_session=False)
+        db.session.commit()
     return render_template('notifications.html', notifs=notifs)
 
 
@@ -1052,6 +1128,86 @@ def inventory_adjust(id):
     db.session.commit()
     flash('Inventory adjusted.', 'success')
     return redirect(url_for('inventory_detail', id=id))
+
+
+@app.route('/inventory/import', methods=['GET', 'POST'])
+@login_required
+def inventory_import():
+    require_manager()
+    if request.method == 'POST':
+        f = request.files.get('csv_file')
+        if not f or not f.filename.endswith('.csv'):
+            flash('Please upload a .csv file.', 'danger')
+            return redirect(url_for('inventory_import'))
+
+        import csv, io
+        text = f.read().decode('utf-8-sig')  # utf-8-sig strips BOM if Excel-exported
+        reader = csv.DictReader(io.StringIO(text))
+
+        added = 0
+        skipped = 0
+        errors = []
+        for i, row in enumerate(reader, start=2):
+            part_number = (row.get('part_number') or row.get('Part Number') or row.get('PartNumber') or '').strip().upper()
+            name        = (row.get('name') or row.get('Name') or row.get('Part Name') or '').strip()
+            if not part_number or not name:
+                errors.append(f'Row {i}: missing part_number or name — skipped')
+                skipped += 1
+                continue
+            # Skip if part number already exists for this company
+            if cq(InventoryItem).filter_by(part_number=part_number).first():
+                skipped += 1
+                continue
+            qty  = safe_int(row.get('quantity_on_hand') or row.get('Quantity') or row.get('qty') or '0')
+            cost = safe_float(row.get('unit_cost') or row.get('Cost') or row.get('Unit Cost') or '0')
+            item = InventoryItem(
+                company_id          = current_user.company_id,
+                part_number         = part_number,
+                name                = name,
+                description         = (row.get('description') or row.get('Description') or '').strip(),
+                category            = (row.get('category') or row.get('Category') or '').strip(),
+                location            = (row.get('location') or row.get('Location') or '').strip(),
+                quantity_on_hand    = qty,
+                min_stock_level     = safe_int(row.get('min_stock_level') or row.get('Min Stock') or '0'),
+                reorder_point       = safe_int(row.get('reorder_point') or row.get('Reorder') or '0'),
+                unit_cost           = cost,
+                supplier            = (row.get('supplier') or row.get('Supplier') or '').strip(),
+                supplier_part_number= (row.get('supplier_part_number') or '').strip(),
+                unit_of_measure     = (row.get('unit_of_measure') or row.get('UOM') or 'EA').strip() or 'EA',
+                notes               = (row.get('notes') or row.get('Notes') or '').strip(),
+            )
+            db.session.add(item)
+            if qty > 0:
+                db.session.flush()
+                db.session.add(InventoryTransaction(
+                    item_id=item.id,
+                    transaction_type='Received',
+                    quantity=qty,
+                    unit_cost=cost,
+                    notes='Imported via CSV'
+                ))
+            added += 1
+
+        db.session.commit()
+        msg = f'Import complete: {added} parts added, {skipped} skipped (duplicates or blank).'
+        if errors:
+            msg += f' Errors: {"; ".join(errors[:3])}'
+        flash(msg, 'success' if added else 'warning')
+        return redirect(url_for('inventory_list'))
+
+    return render_template('inventory_import.html')
+
+
+@app.route('/inventory/import-template')
+@login_required
+def inventory_import_template():
+    """Return a blank CSV template for inventory import."""
+    csv_content = 'part_number,name,category,location,quantity_on_hand,min_stock_level,unit_cost,supplier,unit_of_measure,description,notes\n'
+    csv_content += 'BLT-001,Drive Belt 3/8",Belts & Chains,Bin A-12,5,2,12.50,Grainger,EA,3/8" V-belt 45" long,Use on Line 3 only\n'
+    resp = make_response(csv_content)
+    resp.headers['Content-Type'] = 'text/csv'
+    resp.headers['Content-Disposition'] = 'attachment; filename=inventory_template.csv'
+    return resp
 
 
 @app.route('/inventory/export')

@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Import Inventory - Rivet's MMS{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:640px;margin:0 auto;">
+<h2>📥 Import Parts from CSV</h2>
+<p style="color:#666;font-size:0.9rem;margin-bottom:1.5rem;">Upload a spreadsheet of your spare parts — the system will add them all at once. Parts whose part number already exists will be skipped.</p>
+
+<form method="post" enctype="multipart/form-data">
+<div class="form-group">
+<label>CSV File</label>
+<span class="hint">Export from Excel as "CSV UTF-8" or save your spreadsheet as .csv</span>
+<input type="file" name="csv_file" accept=".csv" required style="padding:0.5rem;border:1px solid var(--border);border-radius:6px;width:100%;background:#fff;">
+</div>
+<button type="submit" class="btn btn-primary">Import Parts</button>
+<a href="{{ url_for('inventory_list') }}" class="btn" style="background:#eee;color:#333;margin-left:0.5rem;">Cancel</a>
+</form>
+
+<hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border);">
+
+<h3 style="font-size:1rem;margin-bottom:0.75rem;">Column Names</h3>
+<p style="font-size:0.87rem;color:#555;margin-bottom:0.75rem;">Your CSV can use these column headers (flexible — it recognizes common variations):</p>
+<table style="font-size:0.85rem;">
+<thead><tr><th>Column</th><th>Required?</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td><code>part_number</code></td><td style="color:var(--danger);">Required</td><td>BLT-001</td></tr>
+<tr><td><code>name</code></td><td style="color:var(--danger);">Required</td><td>Drive Belt 3/8"</td></tr>
+<tr><td><code>category</code></td><td>Optional</td><td>Belts &amp; Chains</td></tr>
+<tr><td><code>location</code></td><td>Optional</td><td>Bin A-12</td></tr>
+<tr><td><code>quantity_on_hand</code></td><td>Optional</td><td>5</td></tr>
+<tr><td><code>min_stock_level</code></td><td>Optional</td><td>2</td></tr>
+<tr><td><code>unit_cost</code></td><td>Optional</td><td>12.50</td></tr>
+<tr><td><code>supplier</code></td><td>Optional</td><td>Grainger</td></tr>
+<tr><td><code>unit_of_measure</code></td><td>Optional</td><td>EA</td></tr>
+<tr><td><code>description</code></td><td>Optional</td><td>3/8" V-belt, 45" long</td></tr>
+<tr><td><code>notes</code></td><td>Optional</td><td>Use on Line 3 only</td></tr>
+</tbody>
+</table>
+
+<div style="margin-top:1.5rem;background:#f0f5ff;border-radius:8px;padding:1rem;">
+<strong>💡 Tip — download a template</strong>
+<p style="font-size:0.87rem;color:#555;margin-top:0.4rem;">Open Excel, create columns matching the names above, fill in your parts, then save as CSV. Import will skip any parts whose part number is already in the system.</p>
+<a href="{{ url_for('inventory_import_template') }}" class="btn btn-sm" style="background:#1a237e;color:#fff;margin-top:0.6rem;">⬇ Download Template CSV</a>
+</div>
+</div>
+
+{% endblock %}

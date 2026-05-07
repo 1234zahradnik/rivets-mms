@@ -105,6 +105,26 @@
 </div>
 {% endif %}
 
+{% if team_workload %}
+<div class="card" style="margin-bottom:1rem;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+<h2 style="margin-bottom:0;">👥 Team Workload</h2>
+<a href="{{ url_for('work_orders') }}" style="font-size:0.85rem;color:var(--primary);">View all WOs &rsaquo;</a>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:0.75rem;">
+{% for t in team_workload %}
+<a href="{{ url_for('work_orders', assigned=t.name) }}" style="text-decoration:none;flex:1;min-width:120px;">
+<div style="background:{% if t.count == 0 %}#f5f5f5{% elif t.count >= 5 %}#fff3e0{% else %}#f0f5ff{% endif %};border-radius:8px;padding:0.75rem 1rem;border:1px solid {% if t.count >= 5 %}#ffcc80{% elif t.count > 0 %}#c5cae9{% else %}#eee{% endif %};">
+  <div style="font-size:1.6rem;font-weight:700;color:{% if t.count == 0 %}#999{% elif t.count >= 5 %}#e65100{% else %}#1a237e{% endif %};">{{ t.count }}</div>
+  <div style="font-size:0.82rem;font-weight:600;color:#333;margin-top:0.1rem;">{{ t.name }}</div>
+  <div style="font-size:0.73rem;color:#888;text-transform:capitalize;">{{ t.role }}</div>
+</div>
+</a>
+{% endfor %}
+</div>
+</div>
+{% endif %}
+
 <div class="two-col-main">
 
 <div class="card">

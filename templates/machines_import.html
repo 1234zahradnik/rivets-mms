@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Import Machines - Rivet's MMS{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:640px;margin:0 auto;">
+<h2>⚙️ Import Machines from CSV</h2>
+<p style="color:#666;font-size:0.9rem;margin-bottom:1.5rem;">Upload a spreadsheet of your equipment — all machines will be added at once. Machines with a duplicate asset tag will be skipped.</p>
+
+<form method="post" enctype="multipart/form-data">
+<div class="form-group">
+<label>CSV File</label>
+<span class="hint">Export from Excel as "CSV UTF-8" or save your spreadsheet as .csv</span>
+<input type="file" name="csv_file" accept=".csv" required style="padding:0.5rem;border:1px solid var(--border);border-radius:6px;width:100%;background:#fff;">
+</div>
+<button type="submit" class="btn btn-primary">Import Machines</button>
+<a href="{{ url_for('machines_list') }}" class="btn" style="background:#eee;color:#333;margin-left:0.5rem;">Cancel</a>
+</form>
+
+<hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border);">
+
+<h3 style="font-size:1rem;margin-bottom:0.75rem;">Column Names</h3>
+<table style="font-size:0.85rem;">
+<thead><tr><th>Column</th><th>Required?</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td><code>asset_tag</code></td><td style="color:var(--danger);">Required</td><td>M-001</td></tr>
+<tr><td><code>name</code></td><td style="color:var(--danger);">Required</td><td>Conveyor Line 3</td></tr>
+<tr><td><code>location</code></td><td>Optional</td><td>Production Floor</td></tr>
+<tr><td><code>manufacturer</code></td><td>Optional</td><td>Hytrol</td></tr>
+<tr><td><code>model_number</code></td><td>Optional</td><td>Model XYZ</td></tr>
+<tr><td><code>serial_number</code></td><td>Optional</td><td>SN-12345</td></tr>
+<tr><td><code>install_date</code></td><td>Optional</td><td>2020-01-15</td></tr>
+<tr><td><code>criticality</code></td><td>Optional</td><td>Critical / High / Medium / Low</td></tr>
+<tr><td><code>notes</code></td><td>Optional</td><td>Main assembly conveyor</td></tr>
+</tbody>
+</table>
+
+<div style="margin-top:1.5rem;background:#f0f5ff;border-radius:8px;padding:1rem;">
+<strong>💡 Download a template to get started</strong>
+<p style="font-size:0.87rem;color:#555;margin-top:0.4rem;">Open the template in Excel, fill in your machines, save as CSV, then import.</p>
+<a href="{{ url_for('machines_import_template') }}" class="btn btn-sm" style="background:#1a237e;color:#fff;margin-top:0.6rem;">⬇ Download Template CSV</a>
+</div>
+</div>
+
+{% endblock %}

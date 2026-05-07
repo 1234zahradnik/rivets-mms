@@ -13,6 +13,9 @@
 <h2>Inventory / Spare Parts</h2>
 <div style="display:flex;gap:0.5rem;">
 <a href="{{ url_for('inventory_export') }}" class="btn btn-sm" style="background:#eee;color:#333;">📥 Export</a>
+{% if current_user.is_manager_or_above %}
+<a href="{{ url_for('inventory_import') }}" class="btn btn-sm" style="background:#e8eaf6;color:#283593;">⬆ Import CSV</a>
+{% endif %}
 <a href="{{ url_for('inventory_add') }}" class="btn btn-accent">+ Add Part</a>
 </div>
 </div>

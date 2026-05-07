@@ -25,6 +25,9 @@
 <a href="{{ url_for('machines_list') }}" class="btn btn-sm" style="background:#eee;color:#333;">✕ Clear</a>
 {% endif %}
 <a href="{{ url_for('machines_export') }}" class="btn btn-sm" style="background:#eee;color:#333;">📥 Export</a>
+{% if current_user.is_manager_or_above %}
+<a href="{{ url_for('machines_import') }}" class="btn btn-sm" style="background:#e8eaf6;color:#283593;">⬆ Import CSV</a>
+{% endif %}
 <a href="{{ url_for('machine_add') }}" class="btn btn-accent">+ Add Machine</a>
 </div>
 </div>
