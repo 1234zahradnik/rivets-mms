@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort, make_response, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_mail import Mail, Message
 from models import db, Company, Machine, MachineHistory, WorkOrder, InventoryItem, InventoryTransaction, User, WOComment, Notification, PMSchedule
 from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
@@ -16,6 +17,7 @@ app.config.from_object(_config.config.get(env_name, _config.config['default']))
 app.config.from_prefixed_env()
 
 db.init_app(app)
+mail = Mail(app)
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -77,6 +79,31 @@ def _next_wo_number():
     max_id = (db.session.query(db.func.max(WorkOrder.id))
               .filter_by(company_id=current_user.company_id).scalar()) or 0
     return f"WO-{datetime.now().year}-{max_id + 1:05d}"
+
+
+def _send_email(subject, recipients, body_html, body_text=''):
+    """Send email if mail is configured. Silently skips if MAIL_USERNAME not set."""
+    if not app.config.get('MAIL_ENABLED'):
+        return
+    try:
+        msg = Message(subject=subject, recipients=recipients,
+                      html=body_html, body=body_text or subject)
+        mail.send(msg)
+    except Exception as e:
+        app.logger.warning(f'Email send failed: {e}')
+
+
+def _email_managers(subject, body_html, company_id):
+    """Email all active admin/manager accounts in a company that have an email address."""
+    managers = User.query.filter(
+        User.company_id == company_id,
+        User.role.in_(['admin', 'manager']),
+        User.is_active == True,
+        User.email != ''
+    ).all()
+    recipients = [u.email for u in managers if u.email]
+    if recipients:
+        _send_email(subject, recipients, body_html)
 
 
 def _notify(title, message='', link='', icon='🔔', user_id=None):
@@ -189,6 +216,37 @@ def register():
 # ══════════════════════════════════════════════════════════════════════════════
 # ADMIN — USER MANAGEMENT
 # ══════════════════════════════════════════════════════════════════════════════
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'update_name':
+            new_name = request.form.get('display_name', '').strip()
+            if new_name:
+                current_user.display_name = new_name
+                db.session.commit()
+                flash('Display name updated.', 'success')
+            else:
+                flash('Name cannot be blank.', 'danger')
+        elif action == 'change_password':
+            old_pw  = request.form.get('old_password', '')
+            new_pw  = request.form.get('new_password', '')
+            confirm = request.form.get('confirm_password', '')
+            if not current_user.check_password(old_pw):
+                flash('Current password is incorrect.', 'danger')
+            elif len(new_pw) < 6:
+                flash('New password must be at least 6 characters.', 'danger')
+            elif new_pw != confirm:
+                flash('New passwords do not match.', 'danger')
+            else:
+                current_user.set_password(new_pw)
+                db.session.commit()
+                flash('Password changed successfully.', 'success')
+        return redirect(url_for('profile'))
+    return render_template('profile.html')
+
 
 @app.route('/admin/users')
 @login_required
@@ -551,11 +609,26 @@ def wo_request():
 
         # Notify managers about emergency or high-priority
         if wo.priority in ('Emergency', 'High'):
+            label = '🚨 EMERGENCY' if wo.priority == 'Emergency' else '⚠️ High Priority'
             _notify_managers(
-                title=f"{'🚨 EMERGENCY' if wo.priority == 'Emergency' else '⚠️ High Priority'}: {wo.title}",
+                title=f"{label}: {wo.title}",
                 message=f"Submitted by {wo.requester_name or current_user.display_name}",
                 link=url_for('wo_detail', id=wo.id),
                 icon='🚨' if wo.priority == 'Emergency' else '⚠️'
+            )
+            _email_managers(
+                subject=f"[Rivet MMS] {label}: {wo.wo_number} — {wo.title}",
+                body_html=f"""
+<h2 style="color:#c62828;">{label}: {wo.wo_number}</h2>
+<p><strong>{wo.title}</strong></p>
+<p><strong>Machine:</strong> {wo.machine.name if wo.machine else 'N/A'}</p>
+<p><strong>Reported by:</strong> {wo.requester_name or current_user.display_name}</p>
+<p><strong>Description:</strong> {wo.description or 'None provided'}</p>
+<p style="margin-top:1rem;"><a href="{request.host_url.rstrip('/')}{url_for('wo_detail', id=wo.id)}"
+   style="background:#c62828;color:#fff;padding:0.6rem 1.2rem;border-radius:6px;text-decoration:none;font-weight:bold;">
+View Work Order →</a></p>
+""",
+                company_id=current_user.company_id
             )
             db.session.commit()
 
@@ -629,6 +702,21 @@ def wo_update(id):
                 icon='📋',
                 user_id=tech.id
             )
+            if tech.email:
+                _send_email(
+                    subject=f"[Rivet MMS] Assigned to you: {wo.wo_number} — {wo.title}",
+                    recipients=[tech.email],
+                    body_html=f"""
+<h2>You've been assigned a work order</h2>
+<p><strong>{wo.wo_number} — {wo.title}</strong></p>
+<p><strong>Machine:</strong> {wo.machine.name if wo.machine else 'N/A'}</p>
+<p><strong>Priority:</strong> {wo.priority}</p>
+<p><strong>Description:</strong> {wo.description or 'None provided'}</p>
+<p style="margin-top:1rem;"><a href="{request.host_url.rstrip('/')}{url_for('wo_detail', id=wo.id)}"
+   style="background:#1a237e;color:#fff;padding:0.6rem 1.2rem;border-radius:6px;text-decoration:none;font-weight:bold;">
+Open Work Order →</a></p>
+"""
+                )
             db.session.commit()
 
     flash('Work order updated.', 'success')
@@ -687,6 +775,22 @@ def wo_close(id):
 
     _sync_machine_status(wo.machine_id)
     db.session.commit()
+
+    # Email requester that their issue is resolved
+    if wo.requester_email:
+        _send_email(
+            subject=f"[Rivet MMS] Resolved: {wo.wo_number} — {wo.title}",
+            recipients=[wo.requester_email],
+            body_html=f"""
+<h2 style="color:#2e7d32;">✅ Your request has been completed</h2>
+<p><strong>{wo.wo_number} — {wo.title}</strong></p>
+<p><strong>Resolution:</strong> {wo.resolution or 'Completed'}</p>
+<p><strong>Notes:</strong> {wo.completion_notes or 'No notes provided'}</p>
+<p><strong>Completed by:</strong> {wo.assigned_to or 'Maintenance team'}</p>
+<p style="color:#888;font-size:0.9rem;margin-top:1rem;">This is an automated message from {wo.machine.company.name if wo.machine else 'Rivet MMS'}.</p>
+"""
+        )
+
     flash('Work order closed out.', 'success')
     return redirect(url_for('wo_detail', id=id))
 
@@ -705,6 +809,31 @@ def wo_comment(id):
         db.session.commit()
         flash('Note added.', 'success')
     return redirect(url_for('wo_detail', id=id))
+
+
+@app.route('/admin/test-email', methods=['POST'])
+@login_required
+def admin_test_email():
+    require_manager()
+    to = request.form.get('to', '').strip()
+    if not to:
+        flash('Enter an email address to test.', 'danger')
+        return redirect(url_for('admin_users'))
+    _send_email(
+        subject='[Rivet MMS] Test Email — It works!',
+        recipients=[to],
+        body_html=f"""
+<h2>✅ Email is working!</h2>
+<p>This is a test message from <strong>Rivet's MMS</strong>.</p>
+<p>Your email notifications are configured correctly. You'll receive alerts for emergency work orders, assignments, and completed jobs.</p>
+<p style="color:#888;font-size:0.85rem;">Sent from {current_user.company.name}</p>
+"""
+    )
+    if app.config.get('MAIL_ENABLED'):
+        flash(f'Test email sent to {to}.', 'success')
+    else:
+        flash('Email is not configured (MAIL_USERNAME env var not set on Railway).', 'warning')
+    return redirect(url_for('admin_users'))
 
 
 @app.route('/notifications')

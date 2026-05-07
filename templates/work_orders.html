@@ -46,7 +46,8 @@
 </div>
 
 {% if wos %}
-<table>
+<!-- Desktop table -->
+<table class="hide-mobile">
 <thead>
 <tr>
 <th>WO#</th>
@@ -78,6 +79,25 @@
 {% endfor %}
 </tbody>
 </table>
+
+<!-- Mobile cards -->
+<div class="mob-cards">
+{% for wo in wos %}
+{% set age = (today - wo.created_at.date()).days %}
+{% set overdue_row = wo.due_date and wo.due_date < today and wo.status not in ['Completed','Cancelled'] %}
+<div class="mob-card {% if wo.priority == 'Emergency' and wo.status not in ['Completed','Cancelled'] %}emerg{% elif wo.priority == 'High' and wo.status not in ['Completed','Cancelled'] %}high{% elif overdue_row %}overdue{% endif %}">
+<div class="mob-card-title"><a href="{{ url_for('wo_detail', id=wo.id) }}">{{ wo.wo_number }}</a> — {{ wo.title[:55] }}{% if wo.title|length > 55 %}...{% endif %}</div>
+<div class="mob-card-meta">
+<span class="badge badge-{{ wo.priority|lower }}">{{ wo.priority }}</span>
+<span class="badge badge-{{ wo.status|lower|replace(' ', '-') }}">{{ wo.status }}</span>
+{% if wo.machine %}<span>⚙️ {{ wo.machine.name }}</span>{% endif %}
+{% if wo.assigned_to %}<span>👤 {{ wo.assigned_to }}</span>{% endif %}
+{% if wo.due_date %}<span style="{% if overdue_row %}color:var(--danger);font-weight:600;{% endif %}">📅 {{ wo.due_date.strftime('%m/%d/%y') }}{% if overdue_row %} OVERDUE{% endif %}</span>{% endif %}
+{% if wo.status not in ['Completed','Cancelled'] %}<span style="color:#999;">{{ age }}d old</span>{% endif %}
+</div>
+</div>
+{% endfor %}
+</div>
 
 {% include 'pagination.html' %}
 

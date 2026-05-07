@@ -102,6 +102,19 @@ tr:hover{background:#fafbff;}
   .stat-card .number{font-size:2rem;}
   header h1{font-size:1.1rem;}
 }
+/* ── Mobile card rows (replaces table on small screens) ─────────────── */
+.mob-cards{display:none;}
+.mob-card{background:#fff;border-radius:8px;padding:0.85rem 1rem;margin-bottom:0.6rem;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-left:4px solid #ddd;}
+.mob-card.emerg{border-left-color:var(--danger);}
+.mob-card.high{border-left-color:var(--accent);}
+.mob-card.overdue{border-left-color:var(--danger);background:#fff5f5;}
+.mob-card-title{font-weight:700;font-size:0.95rem;color:#333;margin-bottom:0.3rem;}
+.mob-card-title a{color:#1a237e;text-decoration:none;}
+.mob-card-meta{font-size:0.8rem;color:#666;display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;}
+@media(max-width:600px){
+  .hide-mobile{display:none!important;}
+  .mob-cards{display:block;}
+}
 </style>
 {% block extra_css %}{% endblock %}
 <style>
@@ -138,7 +151,7 @@ tr:hover{background:#fafbff;}
 <span class="datetime" style="opacity:0.75;font-size:0.82rem;">{{ now.strftime('%b %d, %Y') if now else '' }}</span>
 {% if current_user.is_authenticated %}
 <span style="border-left:1px solid rgba(255,255,255,0.3);padding-left:1rem;">
-  {{ current_user.display_name or current_user.username }}
+  <a href="{{ url_for('profile') }}" style="color:#fff;text-decoration:none;">{{ current_user.display_name or current_user.username }}</a>
   <span style="opacity:0.6;font-size:0.8rem;"> · {{ current_user.role }}</span>
 </span>
 <a href="{{ url_for('notifications') }}" style="color:#fff;text-decoration:none;position:relative;font-size:1.2rem;padding:0.1rem 0.2rem;" title="Notifications">

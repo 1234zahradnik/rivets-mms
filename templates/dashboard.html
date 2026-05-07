@@ -113,7 +113,7 @@
 <a href="{{ url_for('work_orders') }}" style="font-size:0.85rem;color:var(--primary);">View all &rsaquo;</a>
 </div>
 {% if recent_wos %}
-<table>
+<table class="hide-mobile">
 <thead>
 <tr><th>WO#</th><th>Title</th><th>Machine</th><th>Priority</th><th>Status</th><th>Age</th></tr>
 </thead>
@@ -133,6 +133,20 @@
 {% endfor %}
 </tbody>
 </table>
+<div class="mob-cards">
+{% for wo in recent_wos %}
+{% set age = (today - wo.created_at.date()).days %}
+<div class="mob-card {% if wo.priority == 'Emergency' %}emerg{% elif wo.priority == 'High' %}high{% endif %}">
+<div class="mob-card-title"><a href="{{ url_for('wo_detail', id=wo.id) }}">{{ wo.wo_number }}</a> — {{ wo.title[:50] }}{% if wo.title|length > 50 %}...{% endif %}</div>
+<div class="mob-card-meta">
+<span class="badge badge-{{ wo.priority|lower }}">{{ wo.priority }}</span>
+<span class="badge badge-{{ wo.status|lower|replace(' ', '-') }}">{{ wo.status }}</span>
+{% if wo.machine %}<span>⚙️ {{ wo.machine.name }}</span>{% endif %}
+{% if wo.status not in ['Completed','Cancelled'] %}<span style="color:#999;">{{ age }}d ago</span>{% endif %}
+</div>
+</div>
+{% endfor %}
+</div>
 {% else %}
 <p style="color:#666;margin-bottom:1rem;">No work orders yet.</p>
 {% endif %}

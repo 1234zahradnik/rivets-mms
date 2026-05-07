@@ -92,6 +92,24 @@
 </form>
 </div>
 
+<div class="card" style="max-width:520px;background:#f0f5ff;border:1px solid #c5cae9;">
+<h2 style="font-size:1rem;margin-bottom:0.5rem;">📧 Test Email Notifications</h2>
+<p style="font-size:0.85rem;color:#555;margin-bottom:0.75rem;">
+  {% if config.MAIL_ENABLED %}
+  <span style="color:#2e7d32;font-weight:600;">✅ Email is configured</span> — sending via {{ config.MAIL_USERNAME }}
+  {% else %}
+  <span style="color:#e65100;font-weight:600;">⚠️ Email not configured</span> — set <code>MAIL_USERNAME</code> and <code>MAIL_PASSWORD</code> in Railway environment variables.
+  {% endif %}
+</p>
+<form method="post" action="{{ url_for('admin_test_email') }}" style="display:flex;gap:0.5rem;align-items:flex-end;flex-wrap:wrap;">
+<div class="form-group" style="margin-bottom:0;flex:1;min-width:200px;">
+<label style="font-size:0.85rem;">Send test to this email</label>
+<input type="email" name="to" placeholder="email@example.com" value="{{ current_user.email }}">
+</div>
+<button type="submit" class="btn btn-primary">Send Test</button>
+</form>
+</div>
+
 <div class="card" style="max-width:520px;background:#f9f9f9;">
 <h3 style="font-size:0.95rem;margin-bottom:0.5rem;color:#444;">Role Permissions</h3>
 <table style="font-size:0.85rem;">
