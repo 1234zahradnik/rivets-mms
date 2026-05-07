@@ -1,5 +1,10 @@
 {% extends 'base.html' %}
 {% block title %}Reports - Rivet's MMS{% endblock %}
+{% block extra_css %}
+<style>
+.chart-wrap{position:relative;height:220px;}
+</style>
+{% endblock %}
 {% block content %}
 
 <div class="stats">
@@ -26,18 +31,7 @@
 <div class="card">
 <h3>Work Orders by Status</h3>
 {% if wo_by_status %}
-<table>
-<thead><tr><th>Status</th><th>Count</th><th>%</th></tr></thead>
-<tbody>
-{% for status, count in wo_by_status.items()|sort(attribute='1', reverse=True) %}
-<tr>
-<td><span class="badge badge-{{ status|lower|replace(' ','-') }}">{{ status }}</span></td>
-<td>{{ count }}</td>
-<td style="color:#999;">{{ '%.0f'|format(count / total_wos * 100 if total_wos else 0) }}%</td>
-</tr>
-{% endfor %}
-</tbody>
-</table>
+<div class="chart-wrap"><canvas id="chartStatus"></canvas></div>
 {% else %}
 <p style="color:#666;">No work orders yet.</p>
 {% endif %}
@@ -46,17 +40,7 @@
 <div class="card">
 <h3>Open WO Age</h3>
 {% if age_buckets %}
-<table>
-<thead><tr><th>Age Range</th><th>Count</th></tr></thead>
-<tbody>
-{% for bucket, count in age_buckets.items() %}
-<tr>
-<td>{{ bucket }}</td>
-<td style="{% if bucket == '> 7 days' and count > 0 %}color:var(--danger);font-weight:600;{% elif bucket == '4–7 days' and count > 0 %}color:var(--warning);font-weight:600;{% endif %}">{{ count }}</td>
-</tr>
-{% endfor %}
-</tbody>
-</table>
+<div class="chart-wrap"><canvas id="chartAge"></canvas></div>
 <p style="color:#666;font-size:0.8rem;margin-top:0.5rem;">Open WOs only. &gt;7 days without action may need follow-up.</p>
 {% else %}
 <p style="color:#666;">No open work orders.</p>
@@ -66,18 +50,7 @@
 <div class="card">
 <h3>Work Orders by Category</h3>
 {% if wo_by_category %}
-<table>
-<thead><tr><th>Category</th><th>Count</th><th>%</th></tr></thead>
-<tbody>
-{% for cat, count in wo_by_category.items()|sort(attribute='1', reverse=True) %}
-<tr>
-<td>{{ cat }}</td>
-<td>{{ count }}</td>
-<td style="color:#999;">{{ '%.0f'|format(count / total_wos * 100 if total_wos else 0) }}%</td>
-</tr>
-{% endfor %}
-</tbody>
-</table>
+<div class="chart-wrap"><canvas id="chartCat"></canvas></div>
 {% else %}
 <p style="color:#666;">No work orders yet.</p>
 {% endif %}
@@ -137,4 +110,78 @@
 </div>
 
 </div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+Chart.defaults.color = '#555';
+
+var statusData = {{ wo_by_status | tojson }};
+var catData    = {{ wo_by_category | tojson }};
+var ageData    = {{ age_buckets | tojson }};
+
+var statusColors = {
+  'Requested':'#1565c0','Approved':'#e65100','Assigned':'#283593',
+  'In Progress':'#f57f17','Completed':'#2e7d32','Cancelled':'#c62828','On Hold':'#7b1fa2'
+};
+
+if(document.getElementById('chartStatus') && Object.keys(statusData).length){
+  new Chart(document.getElementById('chartStatus'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(statusData),
+      datasets:[{
+        data: Object.values(statusData),
+        backgroundColor: Object.keys(statusData).map(function(s){ return statusColors[s]||'#999'; }),
+        borderWidth: 2, borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'right', labels:{ boxWidth:14, padding:10, font:{size:12} } } }
+    }
+  });
+}
+
+if(document.getElementById('chartCat') && Object.keys(catData).length){
+  new Chart(document.getElementById('chartCat'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(catData),
+      datasets:[{
+        label:'Work Orders',
+        data: Object.values(catData),
+        backgroundColor:'#3949ab', borderRadius:4
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } }, x:{ grid:{ display:false } } }
+    }
+  });
+}
+
+if(document.getElementById('chartAge') && Object.keys(ageData).length){
+  var ageColors = ['#2e7d32','#f9a825','#e65100','#c62828'];
+  new Chart(document.getElementById('chartAge'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(ageData),
+      datasets:[{
+        label:'Open WOs',
+        data: Object.values(ageData),
+        backgroundColor: ageColors, borderRadius:4
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } }, x:{ grid:{ display:false } } }
+    }
+  });
+}
+</script>
+{% endblock %}
 {% endblock %}

@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if sched else 'Add' }} PM Schedule - Rivet's MMS{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:640px;">
+<h2>{{ 'Edit PM Schedule' if sched else 'Add PM Schedule' }}</h2>
+<p style="color:#666;font-size:0.9rem;margin-bottom:1.5rem;">A PM Schedule is a recurring task. Set it up once and the system will create a work order automatically every time it comes due.</p>
+
+<form method="post">
+
+<div class="form-group">
+<label>Task Name *</label>
+<span class="hint">What needs to be done? Example: "Change hydraulic oil" or "Inspect drive belts"</span>
+<input type="text" name="title" value="{{ sched.title if sched else '' }}" required placeholder="e.g., Monthly belt inspection">
+</div>
+
+<div class="form-group">
+<label>Which Machine?</label>
+<span class="hint">Leave blank if this applies to the whole shop.</span>
+<select name="machine_id">
+<option value="">— No specific machine —</option>
+{% for m in machines %}
+<option value="{{ m.id }}" {% if sched and sched.machine_id == m.id %}selected{% endif %}>
+  {{ m.name }}{% if m.location %} — {{ m.location }}{% endif %}
+</option>
+{% endfor %}
+</select>
+</div>
+
+<div class="form-group">
+<label>What needs to be done?</label>
+<span class="hint">Step-by-step instructions for the technician. The more detail, the better.</span>
+<textarea name="description" placeholder="e.g., 1. Lock out machine. 2. Drain old oil. 3. Refill to fill line with ISO 46 hydraulic oil. 4. Check for leaks.">{{ sched.description if sched else '' }}</textarea>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+<div class="form-group">
+<label>Repeat Every (days) *</label>
+<span class="hint">How many days between each task? 30 = monthly, 90 = quarterly, 365 = yearly.</span>
+<input type="number" name="interval_days" value="{{ sched.interval_days if sched else 30 }}" min="1" required>
+</div>
+<div class="form-group">
+<label>Next Due Date</label>
+<span class="hint">When should the first (or next) work order be created?</span>
+<input type="date" name="next_due" value="{{ sched.next_due.strftime('%Y-%m-%d') if sched and sched.next_due else '' }}">
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+<div class="form-group">
+<label>Estimated Hours</label>
+<input type="number" step="0.5" name="estimated_hours" value="{{ sched.estimated_hours if sched else '' }}" placeholder="0">
+</div>
+<div class="form-group">
+<label>Assign To (technician name)</label>
+<input type="text" name="assigned_to" value="{{ sched.assigned_to if sched else '' }}" placeholder="Leave blank to assign later">
+</div>
+</div>
+
+{% if sched %}
+<div class="form-group">
+<label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+<input type="checkbox" name="is_active" {% if sched.is_active %}checked{% endif %} style="width:auto;">
+<span>Schedule is Active (uncheck to pause without deleting)</span>
+</label>
+</div>
+{% endif %}
+
+<button type="submit" class="btn btn-primary">{{ 'Save Changes' if sched else 'Create Schedule' }}</button>
+<a href="{{ url_for('pm_list') }}" class="btn" style="background:#eee;color:#333;">Cancel</a>
+</form>
+</div>
+
+{% block extra_js %}
+<script>
+window.tourSteps = [
+  { sel:'input[name=title]', title:'📋 Task Name', text:'Give this PM task a clear name. Example: "Change hydraulic oil" or "Inspect conveyor belts". Your team will see this as the work order title.' },
+  { sel:'select[name=machine_id]', title:'⚙️ Which Machine?', text:'Pick the machine this task applies to. If it\'s a general shop task like "Clean filters", leave it blank.' },
+  { sel:'textarea[name=description]', title:'📝 Instructions', text:'Write out what the tech needs to do, step by step. The more detail here, the easier it is for them to do it right every time. Tap 🎤 to speak.' },
+  { sel:'input[name=interval_days]', title:'📅 How Often?', text:'Enter the number of days between each PM. 30 = once a month. 90 = every 3 months. 365 = once a year.' },
+  { sel:'input[name=next_due]', title:'📆 Next Due Date', text:'When do you want the next work order to show up? Leave blank and it will use today + the interval you set.' },
+  { sel:'input[name=assigned_to]', title:'👷 Who Does It?', text:'Type the technician\'s name if you want to pre-assign it. You can leave this blank and assign it later.' },
+  { sel:'button[type=submit]', title:'✅ Save It', text:'All done! Save the schedule and the system will automatically create a work order the next time the dashboard loads when it\'s due.' }
+];
+</script>
+{% endblock %}
+
+{% endblock %}

@@ -159,6 +159,7 @@ tr:hover{background:#fafbff;}
 <a href="{{ url_for('inventory_list') }}" class="{% if request.endpoint in ['inventory_list','inventory_add','inventory_edit','inventory_detail','inventory_adjust'] %}active{% endif %}">📦 Inventory</a>
 <a href="{{ url_for('reports') }}" class="{% if request.endpoint == 'reports' %}active{% endif %}">📈 Reports</a>
 {% if current_user.is_authenticated and current_user.is_manager_or_above %}
+<a href="{{ url_for('pm_list') }}" class="{% if request.endpoint in ['pm_list','pm_add','pm_edit'] %}active{% endif %}">🔁 PM Schedules</a>
 <a href="{{ url_for('admin_users') }}" class="{% if request.endpoint in ['admin_users','admin_users_add','admin_users_toggle','admin_users_reset_password'] %}active{% endif %}">👥 Team</a>
 {% endif %}
 {% block nav_extra %}{% endblock %}

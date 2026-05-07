@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}PM Schedules - Rivet's MMS{% endblock %}
+{% block content %}
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+<div>
+<h2 style="margin-bottom:0.2rem;">🔁 Preventive Maintenance Schedules</h2>
+<p style="color:#666;font-size:0.9rem;margin:0;">Set up recurring tasks — the system creates work orders automatically when they come due.</p>
+</div>
+<a href="{{ url_for('pm_add') }}" class="btn btn-primary">+ Add Schedule</a>
+</div>
+
+{% if schedules %}
+<table>
+<thead>
+<tr>
+<th>Task Name</th>
+<th>Machine</th>
+<th>Every</th>
+<th>Assigned To</th>
+<th>Next Due</th>
+<th>Status</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+{% for s in schedules %}
+<tr style="{% if not s.is_active %}opacity:0.5;{% endif %}">
+<td><strong>{{ s.title }}</strong>{% if s.description %}<br><span style="color:#888;font-size:0.8rem;">{{ s.description[:60] }}{% if s.description|length > 60 %}...{% endif %}</span>{% endif %}</td>
+<td>{{ s.machine.name if s.machine else '—' }}</td>
+<td>{{ s.interval_days }} days</td>
+<td>{{ s.assigned_to or '—' }}</td>
+<td style="{% if s.next_due and s.next_due <= today %}color:var(--danger);font-weight:600;{% endif %}">
+  {{ s.next_due.strftime('%m/%d/%Y') if s.next_due else '—' }}
+  {% if s.next_due and s.next_due <= today %}<span style="font-size:0.8rem;"> (due!)</span>{% endif %}
+</td>
+<td><span style="color:{% if s.is_active %}var(--success){% else %}#999{% endif %};font-weight:600;">{{ 'Active' if s.is_active else 'Paused' }}</span></td>
+<td style="white-space:nowrap;">
+<a href="{{ url_for('pm_edit', id=s.id) }}" class="btn btn-sm" style="background:#eee;color:#333;">Edit</a>
+<form method="post" action="{{ url_for('pm_delete', id=s.id) }}" style="display:inline;" onsubmit="return confirm('Delete this PM schedule?')">
+<button type="submit" class="btn btn-sm btn-danger">Delete</button>
+</form>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<div class="empty-state">
+<div class="empty-icon">🔁</div>
+<h3>No PM schedules yet</h3>
+<p>Add a recurring task like "Change oil every 90 days" or "Inspect belts every 30 days" and the system will automatically create a work order when it's due.</p>
+<a href="{{ url_for('pm_add') }}" class="btn btn-primary">+ Create Your First Schedule</a>
+</div>
+{% endif %}
+</div>
+
+{% endblock %}

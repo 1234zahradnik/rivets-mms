@@ -19,12 +19,24 @@
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
 <div class="card">
+<div style="display:flex;gap:1.5rem;flex-wrap:wrap;align-items:flex-start;">
+<div style="flex:1;min-width:0;">
 <h3>Machine Info</h3>
 <table style="font-size:0.9rem;">
 <tr><td><strong>Location:</strong></td><td>{{ machine.location or '-' }}</td></tr>
 <tr><td><strong>Serial #:</strong></td><td>{{ machine.serial_number or '-' }}</td></tr>
+<tr><td><strong>Install Date:</strong></td><td>{{ machine.install_date.strftime('%Y-%m-%d') if machine.install_date else '-' }}</td></tr>
+<tr><td><strong>Criticality:</strong></td><td>{{ machine.criticality or '-' }}</td></tr>
 <tr><td><strong>Notes:</strong></td><td>{{ machine.notes or '-' }}</td></tr>
 </table>
+</div>
+<div style="text-align:center;flex-shrink:0;">
+<p style="font-size:0.8rem;color:#666;margin-bottom:0.5rem;">Scan to open this machine</p>
+<div id="machine-qr" style="display:inline-block;"></div>
+<p style="font-size:0.75rem;color:#999;margin-top:0.4rem;">{{ machine.asset_tag }}</p>
+<button onclick="window.print()" class="btn btn-sm" style="background:#eee;color:#333;margin-top:0.5rem;">🖨️ Print</button>
+</div>
+</div>
 </div>
 
 <div class="card">
@@ -112,5 +124,18 @@
 <a href="{{ url_for('wo_request') }}" class="btn btn-accent btn-sm">Create WO</a>
 {% endif %}
 </div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+new QRCode(document.getElementById('machine-qr'), {
+  text: window.location.href,
+  width: 120, height: 120,
+  colorDark: '#1a237e',
+  colorLight: '#ffffff',
+  correctLevel: QRCode.CorrectLevel.M
+});
+</script>
+{% endblock %}
 
 {% endblock %}

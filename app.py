@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort, make_response, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from models import db, Company, Machine, MachineHistory, WorkOrder, InventoryItem, InventoryTransaction, User, WOComment, Notification
+from models import db, Company, Machine, MachineHistory, WorkOrder, InventoryItem, InventoryTransaction, User, WOComment, Notification, PMSchedule
 from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
 from utils import safe_date, safe_float, safe_int, build_csv, paginate
@@ -264,6 +264,7 @@ def admin_users_reset_password(id):
 @app.route('/')
 @login_required
 def dashboard():
+    _auto_generate_pm(current_user.company_id)
     active_statuses = ['Requested', 'Approved', 'Assigned', 'In Progress', 'On Hold']
     open_wos       = cq(WorkOrder).filter(WorkOrder.status.in_(active_statuses)).count()
     overdue        = cq(WorkOrder).filter(
@@ -853,6 +854,115 @@ def inventory_export():
     resp.headers['Content-Type'] = 'text/csv'
     resp.headers['Content-Disposition'] = 'attachment; filename=inventory.csv'
     return resp
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PM SCHEDULES
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _auto_generate_pm(company_id):
+    """Generate due PM work orders for all active schedules. Call on dashboard load."""
+    today = date.today()
+    due = PMSchedule.query.filter_by(company_id=company_id, is_active=True).filter(
+        db.or_(PMSchedule.next_due == None, PMSchedule.next_due <= today)
+    ).all()
+    for sched in due:
+        # Check there isn't already an open PM WO for this schedule
+        existing = WorkOrder.query.filter(
+            WorkOrder.company_id == company_id,
+            WorkOrder.category == 'Preventive',
+            WorkOrder.title == sched.title,
+            WorkOrder.status.notin_(['Completed', 'Cancelled'])
+        ).first()
+        if existing:
+            continue
+        # Create the WO
+        max_id = (db.session.query(db.func.max(WorkOrder.id))
+                  .filter_by(company_id=company_id).scalar()) or 0
+        wo_num = f"WO-{today.year}-{max_id + 1:05d}"
+        wo = WorkOrder(
+            company_id=company_id,
+            wo_number=wo_num,
+            title=sched.title,
+            description=sched.description,
+            machine_id=sched.machine_id,
+            category='Preventive',
+            priority='Medium',
+            estimated_hours=sched.estimated_hours,
+            assigned_to=sched.assigned_to,
+            due_date=sched.next_due or today
+        )
+        db.session.add(wo)
+        # Advance next_due
+        sched.last_generated_at = today
+        sched.next_due = today + timedelta(days=sched.interval_days)
+    if due:
+        db.session.commit()
+
+
+@app.route('/pm-schedules')
+@login_required
+def pm_list():
+    require_manager()
+    schedules = cq(PMSchedule).order_by(PMSchedule.next_due).all()
+    return render_template('pm_schedules.html', schedules=schedules)
+
+
+@app.route('/pm-schedules/add', methods=['GET', 'POST'])
+@login_required
+def pm_add():
+    require_manager()
+    if request.method == 'POST':
+        interval = safe_int(request.form.get('interval_days'), 30)
+        next_due = safe_date(request.form.get('next_due')) or date.today() + timedelta(days=interval)
+        sched = PMSchedule(
+            company_id=current_user.company_id,
+            machine_id=safe_int(request.form.get('machine_id')) or None,
+            title=request.form['title'],
+            description=request.form.get('description', ''),
+            interval_days=interval,
+            estimated_hours=safe_float(request.form.get('estimated_hours')),
+            assigned_to=request.form.get('assigned_to', ''),
+            next_due=next_due
+        )
+        db.session.add(sched)
+        db.session.commit()
+        flash('PM schedule created.', 'success')
+        return redirect(url_for('pm_list'))
+    machines = cq(Machine).order_by(Machine.name).all()
+    return render_template('pm_form.html', sched=None, machines=machines)
+
+
+@app.route('/pm-schedules/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def pm_edit(id):
+    require_manager()
+    sched = cq(PMSchedule).filter_by(id=id).first_or_404()
+    if request.method == 'POST':
+        sched.machine_id      = safe_int(request.form.get('machine_id')) or None
+        sched.title           = request.form['title']
+        sched.description     = request.form.get('description', '')
+        sched.interval_days   = safe_int(request.form.get('interval_days'), 30)
+        sched.estimated_hours = safe_float(request.form.get('estimated_hours'))
+        sched.assigned_to     = request.form.get('assigned_to', '')
+        sched.next_due        = safe_date(request.form.get('next_due'))
+        sched.is_active       = request.form.get('is_active') == 'on'
+        db.session.commit()
+        flash('PM schedule updated.', 'success')
+        return redirect(url_for('pm_list'))
+    machines = cq(Machine).order_by(Machine.name).all()
+    return render_template('pm_form.html', sched=sched, machines=machines)
+
+
+@app.route('/pm-schedules/<int:id>/delete', methods=['POST'])
+@login_required
+def pm_delete(id):
+    require_manager()
+    sched = cq(PMSchedule).filter_by(id=id).first_or_404()
+    db.session.delete(sched)
+    db.session.commit()
+    flash('PM schedule deleted.', 'success')
+    return redirect(url_for('pm_list'))
 
 
 # ══════════════════════════════════════════════════════════════════════════════

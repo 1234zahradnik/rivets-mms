@@ -1,9 +1,19 @@
 {% extends 'base.html' %}
 {% block title %}Work Order {{ wo.wo_number }} - Rivet's MMS{% endblock %}
+{% block extra_css %}
+<style>
+@media print {
+  header,nav,.report-btn,.no-print,form button,form select,.alert{display:none!important;}
+  body{background:#fff!important;}
+  .card{box-shadow:none!important;border:1px solid #ccc!important;margin-bottom:0.5rem!important;}
+  .container{padding:0!important;}
+}
+</style>
+{% endblock %}
 {% block content %}
 
 <div class="card">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
 <div>
 <h2>{{ wo.wo_number }} — {{ wo.title }}</h2>
 <div style="margin-top:0.5rem;">
@@ -12,9 +22,10 @@
 <span class="badge">{{ wo.category }}</span>
 </div>
 </div>
-<div>
+<div style="display:flex;gap:0.5rem;align-items:center;">
+<button onclick="window.print()" class="btn btn-sm no-print" style="background:#eee;color:#333;">🖨️ Print</button>
 {% if wo.status not in ['Completed','Cancelled'] %}
-<form method="post" action="{{ url_for('wo_update', id=wo.id) }}" style="display:inline;">
+<form method="post" action="{{ url_for('wo_update', id=wo.id) }}" style="display:inline;" class="no-print">
 <input type="hidden" name="status" value="Cancelled">
 <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Cancel this work order?')">Cancel</button>
 </form>

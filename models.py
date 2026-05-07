@@ -199,6 +199,25 @@ class InventoryItem(db.Model):
         }
 
 
+class PMSchedule(db.Model):
+    """Recurring PM template — generates a WO automatically on interval."""
+    __tablename__ = 'pm_schedules'
+    id                = db.Column(db.Integer, primary_key=True)
+    company_id        = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
+    machine_id        = db.Column(db.Integer, db.ForeignKey('machines.id'))
+    title             = db.Column(db.String(200), nullable=False)
+    description       = db.Column(db.Text, default='')
+    interval_days     = db.Column(db.Integer, nullable=False, default=30)
+    estimated_hours   = db.Column(db.Float, default=0)
+    assigned_to       = db.Column(db.String(100), default='')
+    last_generated_at = db.Column(db.Date)
+    next_due          = db.Column(db.Date)
+    is_active         = db.Column(db.Boolean, default=True)
+    created_at        = db.Column(db.DateTime, default=datetime.utcnow)
+
+    machine = db.relationship('Machine', backref='pm_schedules', lazy=True)
+
+
 class WOComment(db.Model):
     __tablename__ = 'wo_comments'
     id         = db.Column(db.Integer, primary_key=True)
