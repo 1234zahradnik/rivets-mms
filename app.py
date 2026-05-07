@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort, make_response, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from models import db, Company, Machine, MachineHistory, WorkOrder, InventoryItem, InventoryTransaction, User
+from models import db, Company, Machine, MachineHistory, WorkOrder, InventoryItem, InventoryTransaction, User, WOComment, Notification
 from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
 from utils import safe_date, safe_float, safe_int, build_csv, paginate
@@ -33,7 +33,20 @@ def load_user(user_id):
 
 @app.context_processor
 def inject_globals():
-    return {'now': datetime.now(), 'today': date.today()}
+    unread = 0
+    if current_user.is_authenticated:
+        unread = Notification.query.filter_by(
+            company_id=current_user.company_id,
+            user_id=current_user.id,
+            is_read=False
+        ).count()
+        # also count company-wide (user_id=None) notifications
+        unread += Notification.query.filter_by(
+            company_id=current_user.company_id,
+            user_id=None,
+            is_read=False
+        ).count()
+    return {'now': datetime.now(), 'today': date.today(), 'unread_notifications': unread}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -64,6 +77,32 @@ def _next_wo_number():
     max_id = (db.session.query(db.func.max(WorkOrder.id))
               .filter_by(company_id=current_user.company_id).scalar()) or 0
     return f"WO-{datetime.now().year}-{max_id + 1:05d}"
+
+
+def _notify(title, message='', link='', icon='🔔', user_id=None):
+    """Create an in-app notification for the current user's company."""
+    db.session.add(Notification(
+        company_id=current_user.company_id,
+        user_id=user_id,
+        title=title,
+        message=message,
+        link=link,
+        icon=icon
+    ))
+
+
+def _notify_managers(title, message='', link='', icon='🔔'):
+    """Notify every admin/manager in the current company."""
+    managers = cq(User).filter(User.role.in_(['admin', 'manager']), User.is_active == True).all()
+    for m in managers:
+        db.session.add(Notification(
+            company_id=current_user.company_id,
+            user_id=m.id,
+            title=title,
+            message=message,
+            link=link,
+            icon=icon
+        ))
 
 
 def _sync_machine_status(machine_id):
@@ -258,13 +297,22 @@ def dashboard():
         WorkOrder.due_date <= date.today() + timedelta(days=7)
     ).order_by(WorkOrder.due_date).limit(5).all()
 
+    # "My Jobs" — WOs assigned to this user by name/username
+    my_jobs = []
+    if current_user.role == 'technician':
+        name = current_user.display_name or current_user.username
+        my_jobs = cq(WorkOrder).filter(
+            WorkOrder.assigned_to.ilike(name),
+            WorkOrder.status.in_(active_statuses)
+        ).order_by(WorkOrder.created_at.desc()).limit(10).all()
+
     return render_template('dashboard.html',
                            open_wos=open_wos, overdue=overdue,
                            low_stock=low_stock, machines_down=machines_down,
                            machines_down_list=machines_down_list,
                            emergency_wos=emergency_wos,
                            recent_wos=recent_wos, recent_history=recent_history,
-                           upcoming_pm=upcoming_pm)
+                           upcoming_pm=upcoming_pm, my_jobs=my_jobs)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -440,7 +488,23 @@ def wo_request():
                 fname = secure_filename(f"{wo.wo_number}{ext}")
                 f.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                 wo.attachment = fname
+        # Emergency WO → immediately mark machine as Down
+        if wo.priority == 'Emergency' and wo.machine_id:
+            machine = cget(Machine, wo.machine_id)
+            machine.status = 'Down'
+
         db.session.commit()
+
+        # Notify managers about emergency or high-priority
+        if wo.priority in ('Emergency', 'High'):
+            _notify_managers(
+                title=f"{'🚨 EMERGENCY' if wo.priority == 'Emergency' else '⚠️ High Priority'}: {wo.title}",
+                message=f"Submitted by {wo.requester_name or current_user.display_name}",
+                link=url_for('wo_detail', id=wo.id),
+                icon='🚨' if wo.priority == 'Emergency' else '⚠️'
+            )
+            db.session.commit()
+
         flash(f'Work order {wo.wo_number} submitted.', 'success')
         return redirect(url_for('work_orders'))
 
@@ -468,15 +532,18 @@ def wo_detail(id):
         except (json.JSONDecodeError, ValueError):
             pass
 
+    comments = WOComment.query.filter_by(wo_id=id).order_by(WOComment.created_at).all()
     return render_template('wo_detail.html', wo=wo,
-                           inventory=inventory, parts_used_detail=parts_used_detail)
+                           inventory=inventory, parts_used_detail=parts_used_detail,
+                           comments=comments)
 
 
 @app.route('/work-orders/<int:id>/update', methods=['POST'])
 @login_required
 def wo_update(id):
-    wo         = cget(WorkOrder, id)
-    old_status = wo.status
+    wo           = cget(WorkOrder, id)
+    old_status   = wo.status
+    old_assigned = wo.assigned_to
 
     wo.status          = request.form.get('status', wo.status)
     wo.assigned_to     = request.form.get('assigned_to', wo.assigned_to)
@@ -493,6 +560,22 @@ def wo_update(id):
 
     _sync_machine_status(wo.machine_id)
     db.session.commit()
+
+    # Notify newly assigned technician if they have an account
+    if wo.assigned_to and wo.assigned_to != old_assigned:
+        tech = cq(User).filter(
+            db.or_(User.display_name == wo.assigned_to, User.username == wo.assigned_to)
+        ).first()
+        if tech:
+            _notify(
+                title=f"You've been assigned: {wo.wo_number}",
+                message=wo.title,
+                link=url_for('wo_detail', id=wo.id),
+                icon='📋',
+                user_id=tech.id
+            )
+            db.session.commit()
+
     flash('Work order updated.', 'success')
     return redirect(url_for('wo_detail', id=id))
 
@@ -551,6 +634,44 @@ def wo_close(id):
     db.session.commit()
     flash('Work order closed out.', 'success')
     return redirect(url_for('wo_detail', id=id))
+
+
+@app.route('/work-orders/<int:id>/comment', methods=['POST'])
+@login_required
+def wo_comment(id):
+    wo   = cget(WorkOrder, id)
+    body = request.form.get('body', '').strip()
+    if body:
+        db.session.add(WOComment(
+            wo_id=id,
+            author=current_user.display_name or current_user.username,
+            body=body
+        ))
+        db.session.commit()
+        flash('Note added.', 'success')
+    return redirect(url_for('wo_detail', id=id))
+
+
+@app.route('/notifications')
+@login_required
+def notifications():
+    notifs = Notification.query.filter(
+        Notification.company_id == current_user.company_id,
+        db.or_(Notification.user_id == current_user.id, Notification.user_id == None)
+    ).order_by(Notification.created_at.desc()).limit(50).all()
+    return render_template('notifications.html', notifs=notifs)
+
+
+@app.route('/notifications/mark-read', methods=['POST'])
+@login_required
+def notifications_mark_read():
+    Notification.query.filter(
+        Notification.company_id == current_user.company_id,
+        db.or_(Notification.user_id == current_user.id, Notification.user_id == None),
+        Notification.is_read == False
+    ).update({'is_read': True})
+    db.session.commit()
+    return redirect(request.referrer or url_for('notifications'))
 
 
 @app.route('/work-orders/export')

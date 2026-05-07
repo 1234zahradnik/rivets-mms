@@ -139,6 +139,9 @@ class WorkOrder(db.Model):
         db.UniqueConstraint('company_id', 'wo_number', name='uq_wo_number_company'),
     )
 
+    comments = db.relationship('WOComment', backref='wo', lazy=True,
+                               order_by='WOComment.created_at')
+
     def to_dict(self):
         return {
             'id': self.id, 'wo_number': self.wo_number, 'title': self.title,
@@ -194,6 +197,28 @@ class InventoryItem(db.Model):
             'is_low_stock': self.quantity_on_hand <= self.min_stock_level,
             'total_value': self.total_value
         }
+
+
+class WOComment(db.Model):
+    __tablename__ = 'wo_comments'
+    id         = db.Column(db.Integer, primary_key=True)
+    wo_id      = db.Column(db.Integer, db.ForeignKey('work_orders.id'), nullable=False)
+    author     = db.Column(db.String(100), nullable=False)
+    body       = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    id         = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'))
+    title      = db.Column(db.String(200), nullable=False)
+    message    = db.Column(db.Text, default='')
+    link       = db.Column(db.String(255), default='')
+    icon       = db.Column(db.String(10), default='🔔')
+    is_read    = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class InventoryTransaction(db.Model):

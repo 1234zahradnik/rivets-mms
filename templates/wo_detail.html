@@ -199,4 +199,35 @@
 </div>
 {% endif %}
 
+<!-- ── Work Order Notes / Comments ──────────────────────────────────── -->
+<div class="card" style="margin-top:1rem;">
+<h2 style="margin-bottom:0.75rem;">📝 Notes &amp; Updates</h2>
+
+{% if comments %}
+<div style="margin-bottom:1rem;">
+{% for c in comments %}
+<div style="padding:0.75rem;background:#f8f9ff;border-radius:8px;margin-bottom:0.5rem;border-left:3px solid var(--primary);">
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.3rem;">
+<strong style="font-size:0.9rem;">{{ c.author }}</strong>
+<span style="font-size:0.8rem;color:#888;">{{ c.created_at.strftime('%b %d, %Y %I:%M %p') }}</span>
+</div>
+<p style="margin:0;font-size:0.9rem;white-space:pre-wrap;">{{ c.body }}</p>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<p style="color:#888;font-size:0.9rem;margin-bottom:0.75rem;">No notes yet — add one below.</p>
+{% endif %}
+
+{% if wo.status not in ['Completed', 'Cancelled'] %}
+<form method="post" action="{{ url_for('wo_comment', id=wo.id) }}" style="display:flex;gap:0.5rem;align-items:flex-end;">
+<div class="form-group" style="flex:1;margin-bottom:0;">
+<label style="font-size:0.85rem;">Add a note — what did you find? What did you do?</label>
+<textarea name="body" rows="2" placeholder="e.g., Checked belt tension, found it loose. Adjusted and tested — running fine now." style="min-height:60px;"></textarea>
+</div>
+<button type="submit" class="btn btn-primary" style="white-space:nowrap;align-self:flex-end;">Add Note</button>
+</form>
+{% endif %}
+</div>
+
 {% endblock %}

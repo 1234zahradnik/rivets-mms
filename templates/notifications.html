@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Notifications - Rivet's MMS{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:700px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+<h2 style="margin-bottom:0;">🔔 Notifications</h2>
+{% if notifs %}
+<form method="post" action="{{ url_for('notifications_mark_read') }}">
+<button type="submit" class="btn btn-sm" style="background:#eee;color:#333;">Mark all read</button>
+</form>
+{% endif %}
+</div>
+
+{% if notifs %}
+<div style="display:flex;flex-direction:column;gap:0.5rem;">
+{% for n in notifs %}
+<div style="padding:0.9rem 1rem;border-radius:8px;display:flex;gap:0.75rem;align-items:flex-start;
+  background:{% if not n.is_read %}#f0f4ff{% else %}#fafafa{% endif %};
+  border:1px solid {% if not n.is_read %}#c5cae9{% else %}#eee{% endif %};">
+<span style="font-size:1.4rem;flex-shrink:0;">{{ n.icon }}</span>
+<div style="flex:1;min-width:0;">
+<div style="display:flex;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;">
+<strong style="font-size:0.9rem;">
+  {% if n.link %}<a href="{{ n.link }}" style="color:var(--primary);text-decoration:none;">{{ n.title }}</a>
+  {% else %}{{ n.title }}{% endif %}
+</strong>
+<span style="font-size:0.8rem;color:#888;white-space:nowrap;">{{ n.created_at.strftime('%b %d, %I:%M %p') }}</span>
+</div>
+{% if n.message %}
+<p style="margin:0.2rem 0 0;font-size:0.85rem;color:#555;">{{ n.message }}</p>
+{% endif %}
+</div>
+{% if not n.is_read %}<span style="width:8px;height:8px;border-radius:50%;background:var(--primary);flex-shrink:0;margin-top:5px;"></span>{% endif %}
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+<div class="empty-icon">🔔</div>
+<h3>You're all caught up</h3>
+<p>Notifications will appear here when work orders are assigned to you, emergencies come in, or jobs are completed.</p>
+</div>
+{% endif %}
+</div>
+
+{% endblock %}

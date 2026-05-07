@@ -2,6 +2,29 @@
 {% block title %}Dashboard - Rivet's MMS{% endblock %}
 {% block content %}
 
+{% if my_jobs %}
+<div class="card" style="border-left:4px solid var(--primary);margin-bottom:1rem;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+<h2 style="margin-bottom:0;">📋 My Assigned Jobs</h2>
+<span style="font-size:0.85rem;color:#666;">{{ my_jobs|length }} open</span>
+</div>
+<table>
+<thead><tr><th>WO#</th><th>What needs doing</th><th>Machine</th><th>Priority</th><th>Status</th></tr></thead>
+<tbody>
+{% for wo in my_jobs %}
+<tr style="{% if wo.priority == 'Emergency' %}background:#fff0f0;{% elif wo.priority == 'High' %}background:#fff8ee;{% endif %}">
+<td><a href="{{ url_for('wo_detail', id=wo.id) }}" style="font-weight:600;">{{ wo.wo_number }}</a></td>
+<td>{{ wo.title[:45] }}{% if wo.title|length > 45 %}...{% endif %}</td>
+<td style="color:#666;font-size:0.85rem;">{{ wo.machine.name if wo.machine else '—' }}</td>
+<td><span class="badge badge-{{ wo.priority|lower }}">{{ wo.priority }}</span></td>
+<td><span class="badge badge-{{ wo.status|lower|replace(' ', '-') }}">{{ wo.status }}</span></td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% endif %}
+
 {% if machines_down_list %}
 <div class="alert alert-danger" style="border-left:4px solid var(--danger);display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
 <strong>&#9888; Machines Down:</strong>
