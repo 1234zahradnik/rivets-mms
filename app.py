@@ -442,6 +442,7 @@ def machines_export():
 def work_orders():
     status_filter   = request.args.get('status', '')
     priority_filter = request.args.get('priority', '')
+    assigned_filter = request.args.get('assigned', '')
     search          = request.args.get('q', '').strip()
     page            = safe_int(request.args.get('page', 1), 1)
 
@@ -450,6 +451,8 @@ def work_orders():
         query = query.filter_by(status=status_filter)
     if priority_filter:
         query = query.filter_by(priority=priority_filter)
+    if assigned_filter:
+        query = query.filter(WorkOrder.assigned_to.ilike(f'%{assigned_filter}%'))
     if search:
         like = f'%{search}%'
         query = query.filter(
@@ -460,6 +463,7 @@ def work_orders():
     wos, total, pages = paginate(query.order_by(WorkOrder.created_at.desc()), page, app.config.get('PER_PAGE', 25))
     return render_template('work_orders.html', wos=wos,
                            status_filter=status_filter, priority_filter=priority_filter,
+                           assigned_filter=assigned_filter,
                            search=search, page=page, pages=pages, total=total)
 
 

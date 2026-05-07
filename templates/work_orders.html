@@ -18,9 +18,13 @@
 </div>
 
 <div class="filters">
+<a href="{{ url_for('work_orders', assigned=current_user.display_name or current_user.username) }}"
+   class="btn btn-sm" style="background:{% if assigned_filter %}var(--primary);color:#fff{% else %}#e8eaf6;color:#283593{% endif %};">
+  👤 My Jobs
+</a>
 <form method="get" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
 <input type="hidden" name="q" value="{{ search }}">
-<select name="status">
+<select name="status" onchange="this.form.submit()">
 <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
 <option value="Requested" {% if status_filter == 'Requested' %}selected{% endif %}>Requested</option>
 <option value="Approved" {% if status_filter == 'Approved' %}selected{% endif %}>Approved</option>
@@ -30,14 +34,13 @@
 <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed</option>
 <option value="Cancelled" {% if status_filter == 'Cancelled' %}selected{% endif %}>Cancelled</option>
 </select>
-<select name="priority">
+<select name="priority" onchange="this.form.submit()">
 <option value="" {% if not priority_filter %}selected{% endif %}>All Priorities</option>
 <option value="Emergency" {% if priority_filter == 'Emergency' %}selected{% endif %}>Emergency</option>
 <option value="High" {% if priority_filter == 'High' %}selected{% endif %}>High</option>
 <option value="Medium" {% if priority_filter == 'Medium' %}selected{% endif %}>Medium</option>
 <option value="Low" {% if priority_filter == 'Low' %}selected{% endif %}>Low</option>
 </select>
-<button type="submit" class="btn btn-primary btn-sm">Filter</button>
 <a href="{{ url_for('work_orders') }}" class="btn btn-sm" style="background:#eee;color:#333;">Clear</a>
 </form>
 </div>

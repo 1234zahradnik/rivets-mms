@@ -45,25 +45,38 @@
 <th>Name</th>
 <th>Category</th>
 <th>Location</th>
-<th>Qty</th>
+<th>On Hand</th>
 <th>Min</th>
-<th>Unit Cost</th>
-<th>Supplier</th>
-<th>Status</th>
+<th>Cost</th>
+<th>Quick Adjust</th>
 </tr>
 </thead>
 <tbody>
 {% for item in items %}
 <tr {% if item.is_low_stock %}style="background:#ffebee;"{% endif %}>
 <td><a href="{{ url_for('inventory_detail', id=item.id) }}">{{ item.part_number }}</a></td>
-<td>{{ item.name[:30] }}</td>
+<td>{{ item.name[:28] }}</td>
 <td>{{ item.category or '-' }}</td>
 <td>{{ item.location or '-' }}</td>
-<td>{% if item.is_low_stock %}<strong style="color:var(--danger);">{{ item.quantity_on_hand }}</strong>{% else %}{{ item.quantity_on_hand }}{% endif %}</td>
+<td id="qty-{{ item.id }}" style="font-weight:600;">
+  {% if item.is_low_stock %}<span style="color:var(--danger);">{{ item.quantity_on_hand }}</span>{% else %}{{ item.quantity_on_hand }}{% endif %}
+  <span style="color:#aaa;font-size:0.78rem;font-weight:400;"> {{ item.unit_of_measure }}</span>
+</td>
 <td>{{ item.min_stock_level }}</td>
 <td>${{ '%.2f'|format(item.unit_cost) }}</td>
-<td>{{ item.supplier or '-' }}</td>
-<td>{{ item.status }}</td>
+<td style="white-space:nowrap;">
+<form method="post" action="{{ url_for('inventory_adjust', id=item.id) }}" style="display:inline-flex;gap:3px;align-items:center;">
+<input type="hidden" name="quantity" id="qval-{{ item.id }}" value="{{ item.quantity_on_hand }}">
+<input type="hidden" name="notes" value="Quick adjust from list">
+<input type="hidden" name="performed_by" value="{{ current_user.display_name or current_user.username }}">
+<button type="button" class="btn btn-sm" style="padding:0.2rem 0.55rem;background:#ffcdd2;color:#c62828;"
+  onclick="quickAdj({{ item.id }}, -1)">−</button>
+<span id="qdisplay-{{ item.id }}" style="min-width:28px;text-align:center;font-weight:600;color:#1a237e;display:none;font-size:0.9rem;">{{ item.quantity_on_hand }}</span>
+<button type="button" class="btn btn-sm" style="padding:0.2rem 0.55rem;background:#c8e6c9;color:#2e7d32;"
+  onclick="quickAdj({{ item.id }}, 1)">+</button>
+<button type="submit" class="btn btn-sm btn-primary" id="save-{{ item.id }}" style="display:none;padding:0.2rem 0.5rem;">✓</button>
+</form>
+</td>
 </tr>
 {% endfor %}
 </tbody>
@@ -80,5 +93,22 @@
 </div>
 {% endif %}
 </div>
+
+{% block extra_js %}
+<script>
+var pending = {};
+function quickAdj(id, delta){
+  var inp = document.getElementById('qval-'+id);
+  var disp = document.getElementById('qdisplay-'+id);
+  var saveBtn = document.getElementById('save-'+id);
+  if(pending[id] === undefined) pending[id] = parseInt(inp.value) || 0;
+  pending[id] = Math.max(0, pending[id] + delta);
+  inp.value = pending[id];
+  disp.textContent = pending[id];
+  disp.style.display = 'inline';
+  saveBtn.style.display = 'inline-block';
+}
+</script>
+{% endblock %}
 
 {% endblock %}
