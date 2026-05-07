@@ -30,7 +30,7 @@
 </div>
 
 {% if machines %}
-<table>
+<table class="hide-mobile">
 <thead>
 <tr>
 <th>Asset Tag</th>
@@ -56,6 +56,26 @@
 {% endfor %}
 </tbody>
 </table>
+
+<div class="mob-cards">
+{% for m in machines %}
+<div class="mob-card {% if m.status == 'Down' %}emerg{% endif %}">
+<div class="mob-card-title">
+  <a href="{{ url_for('machine_detail', id=m.id) }}">{{ m.name }}</a>
+  <span style="font-weight:400;color:#888;font-size:0.85rem;"> · {{ m.asset_tag }}</span>
+</div>
+<div class="mob-card-meta">
+  <span style="display:inline-flex;align-items:center;gap:0.25rem;">
+    <span class="status-dot status-{{ m.status|lower }}"></span>{{ m.status }}
+  </span>
+  {% if m.location %}<span>📍 {{ m.location }}</span>{% endif %}
+  {% if m.manufacturer %}<span>{{ m.manufacturer }}{% if m.model_number %} {{ m.model_number }}{% endif %}</span>{% endif %}
+  {% if m.criticality and m.criticality != 'Medium' %}<span style="color:{% if m.criticality=='Critical' %}var(--danger){% else %}var(--warning){% endif %};">{{ m.criticality }}</span>{% endif %}
+  <a href="{{ url_for('machine_edit', id=m.id) }}" style="margin-left:auto;color:var(--primary);font-size:0.8rem;">Edit</a>
+</div>
+</div>
+{% endfor %}
+</div>
 
 {% include 'pagination.html' %}
 

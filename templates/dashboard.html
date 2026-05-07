@@ -55,7 +55,7 @@
 </div>
 </a>
 {% set od_color = '#c62828' if overdue > 0 else '#2e7d32' %}
-<a href="{{ url_for('work_orders', status='Requested') }}" style="text-decoration:none;">
+<a href="{{ url_for('work_orders', overdue='1') }}" style="text-decoration:none;">
 <div class="stat-card {% if overdue > 0 %}danger{% else %}ok{% endif %}" style="border-top:4px solid {{ od_color }};">
 <div class="number" style="color:{{ od_color }};">{{ overdue }}</div>
 <div class="label">Past Due</div>

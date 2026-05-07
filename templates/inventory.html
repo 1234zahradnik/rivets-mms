@@ -38,7 +38,7 @@
 </div>
 
 {% if items %}
-<table>
+<table class="hide-mobile">
 <thead>
 <tr>
 <th>Part #</th>
@@ -81,6 +81,40 @@
 {% endfor %}
 </tbody>
 </table>
+
+<!-- Mobile cards for inventory -->
+<div class="mob-cards">
+{% for item in items %}
+<div class="mob-card {% if item.is_low_stock %}overdue{% endif %}">
+<div class="mob-card-title">
+  <a href="{{ url_for('inventory_detail', id=item.id) }}">{{ item.name }}</a>
+  <span style="font-weight:400;color:#888;font-size:0.82rem;"> · {{ item.part_number }}</span>
+</div>
+<div class="mob-card-meta">
+  <span style="font-size:1rem;font-weight:700;color:{% if item.is_low_stock %}var(--danger){% elif item.quantity_on_hand > item.min_stock_level * 2 %}var(--success){% else %}#333{% endif %};">
+    {{ item.quantity_on_hand }} {{ item.unit_of_measure }}
+  </span>
+  <span style="color:#888;">min: {{ item.min_stock_level }}</span>
+  {% if item.category %}<span>{{ item.category }}</span>{% endif %}
+  {% if item.location %}<span>📍 {{ item.location }}</span>{% endif %}
+  {% if item.is_low_stock %}<span style="color:var(--danger);font-weight:600;">⚠ LOW</span>{% endif %}
+</div>
+<div style="display:flex;gap:4px;margin-top:0.5rem;align-items:center;">
+<form method="post" action="{{ url_for('inventory_adjust', id=item.id) }}" style="display:inline-flex;gap:4px;align-items:center;">
+<input type="hidden" name="quantity" id="qval-m{{ item.id }}" value="{{ item.quantity_on_hand }}">
+<input type="hidden" name="notes" value="Quick adjust from inventory list">
+<input type="hidden" name="performed_by" value="{{ current_user.display_name or current_user.username }}">
+<button type="button" class="btn btn-sm" style="padding:0.3rem 0.7rem;background:#ffcdd2;color:#c62828;font-size:1rem;"
+  onclick="quickAdj('m{{ item.id }}', -1)">−</button>
+<span id="qdisplay-m{{ item.id }}" style="min-width:32px;text-align:center;font-weight:700;color:#1a237e;font-size:1rem;display:none;">{{ item.quantity_on_hand }}</span>
+<button type="button" class="btn btn-sm" style="padding:0.3rem 0.7rem;background:#c8e6c9;color:#2e7d32;font-size:1rem;"
+  onclick="quickAdj('m{{ item.id }}', 1)">+</button>
+<button type="submit" class="btn btn-sm btn-primary" id="save-m{{ item.id }}" style="display:none;padding:0.3rem 0.6rem;">✓ Save</button>
+</form>
+</div>
+</div>
+{% endfor %}
+</div>
 
 {% include 'pagination.html' %}
 

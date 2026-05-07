@@ -22,6 +22,10 @@
    class="btn btn-sm" style="background:{% if assigned_filter %}var(--primary);color:#fff{% else %}#e8eaf6;color:#283593{% endif %};">
   👤 My Jobs
 </a>
+<a href="{{ url_for('work_orders', overdue='1') }}"
+   class="btn btn-sm" style="background:{% if overdue_filter %}#c62828;color:#fff{% else %}#ffcdd2;color:#c62828{% endif %};">
+  ⏰ Past Due
+</a>
 <form method="get" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
 <input type="hidden" name="q" value="{{ search }}">
 <select name="status" onchange="this.form.submit()">

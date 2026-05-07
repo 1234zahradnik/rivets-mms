@@ -501,6 +501,7 @@ def work_orders():
     status_filter   = request.args.get('status', '')
     priority_filter = request.args.get('priority', '')
     assigned_filter = request.args.get('assigned', '')
+    overdue_filter  = request.args.get('overdue', '') == '1'
     search          = request.args.get('q', '').strip()
     page            = safe_int(request.args.get('page', 1), 1)
 
@@ -511,6 +512,11 @@ def work_orders():
         query = query.filter_by(priority=priority_filter)
     if assigned_filter:
         query = query.filter(WorkOrder.assigned_to.ilike(f'%{assigned_filter}%'))
+    if overdue_filter:
+        query = query.filter(
+            WorkOrder.due_date < date.today(),
+            WorkOrder.status.notin_(['Completed', 'Cancelled'])
+        )
     if search:
         like = f'%{search}%'
         query = query.filter(
@@ -521,7 +527,7 @@ def work_orders():
     wos, total, pages = paginate(query.order_by(WorkOrder.created_at.desc()), page, app.config.get('PER_PAGE', 25))
     return render_template('work_orders.html', wos=wos,
                            status_filter=status_filter, priority_filter=priority_filter,
-                           assigned_filter=assigned_filter,
+                           assigned_filter=assigned_filter, overdue_filter=overdue_filter,
                            search=search, page=page, pages=pages, total=total)
 
 
@@ -762,6 +768,33 @@ def wo_close(id):
                     ))
 
     wo.parts_used = json.dumps(parts_data) if parts_data else ''
+
+    # Notify managers about parts that hit low-stock after this WO
+    low_parts = []
+    for part_id_str in parts_data:
+        item = db.session.get(InventoryItem, int(part_id_str))
+        if item and item.company_id == current_user.company_id and item.quantity_on_hand <= item.min_stock_level:
+            low_parts.append(item)
+    if low_parts:
+        rows = ''.join(
+            f'<tr><td>{i.name}</td><td>{i.part_number}</td><td style="color:#c62828;font-weight:700;">{i.quantity_on_hand} {i.unit_of_measure}</td><td>{i.min_stock_level}</td></tr>'
+            for i in low_parts
+        )
+        _email_managers(
+            subject=f'[Rivet MMS] ⚠ Low Stock Alert — {len(low_parts)} part(s) need reordering',
+            body_html=f'''
+<h2 style="color:#e65100;">⚠ Low Stock Alert</h2>
+<p>Parts used on <strong>{wo.wo_number}</strong> have dropped to or below minimum stock levels:</p>
+<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-size:0.9rem;">
+<thead style="background:#f5f5f5;"><tr><th>Part Name</th><th>Part #</th><th>On Hand</th><th>Min Level</th></tr></thead>
+<tbody>{rows}</tbody>
+</table>
+<p style="margin-top:1rem;"><a href="{request.host_url.rstrip('/')}{url_for('inventory_list', low_stock=1)}"
+   style="background:#e65100;color:#fff;padding:0.6rem 1.2rem;border-radius:6px;text-decoration:none;font-weight:bold;">
+View Low Stock →</a></p>
+''',
+            company_id=current_user.company_id
+        )
 
     if wo.machine_id:
         db.session.add(MachineHistory(

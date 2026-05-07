@@ -56,6 +56,7 @@
 <div class="form-group">
 <label style="font-size:1rem;font-weight:600;">Your name</label>
 <input type="text" name="requester_name"
+  value="{{ current_user.display_name or current_user.username }}"
   placeholder="So maintenance knows who to follow up with"
   style="font-size:1rem;padding:0.75rem;">
 </div>
@@ -99,7 +100,7 @@
 </select>
 </div>
 <div class="form-group" style="margin-bottom:0;">
-<label>Requested By (date)</label>
+<label>Needed By (date)</label>
 <input type="date" name="due_date">
 </div>
 </div>

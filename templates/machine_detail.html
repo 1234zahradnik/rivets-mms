@@ -8,12 +8,14 @@
 <h2>{{ machine.name }}</h2>
 <p style="color:#666;font-size:0.9rem;">{{ machine.asset_tag }} | {{ machine.manufacturer or 'No mfr' }} {{ machine.model_number or '' }}</p>
 </div>
-<div style="display:flex;gap:0.5rem;align-items:center;">
-<span class="badge badge-{{ machine.status|lower }}">{{ machine.status }}</span>
-<a href="{{ url_for('machine_edit', id=machine.id) }}" class="btn btn-sm" style="background:#eee;color:#333;">Edit</a>
-<a href="{{ url_for('wo_request') }}?machine_id={{ machine.id }}" class="btn btn-accent btn-sm">New WO</a>
+<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+<span style="display:inline-flex;align-items:center;gap:0.3rem;font-weight:600;font-size:0.9rem;padding:0.25rem 0.7rem;border-radius:12px;background:{% if machine.status=='Down' %}#ffebee;color:#c62828{% elif machine.status=='Active' %}#e8f5e9;color:#2e7d32{% else %}#f5f5f5;color:#666{% endif %};">
+  <span style="width:8px;height:8px;border-radius:50%;background:{% if machine.status=='Down' %}#c62828{% elif machine.status=='Active' %}#2e7d32{% else %}#999{% endif %};display:inline-block;"></span>
+  {{ machine.status }}
+</span>
+<a href="{{ url_for('machine_edit', id=machine.id) }}" class="btn btn-sm" style="background:#eee;color:#333;">✏️ Edit</a>
+<a href="{{ url_for('wo_request') }}?machine_id={{ machine.id }}" class="btn btn-accent btn-sm">+ New WO</a>
 </div>
-<a href="{{ url_for('machine_edit', id=machine.id) }}" class="btn btn-sm btn-primary">Edit Machine</a>
 </div>
 </div>
 
