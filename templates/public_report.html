@@ -29,6 +29,12 @@ h1{color:var(--primary);font-size:1.4rem;margin-bottom:0.2rem;}
 .submit-btn:active{opacity:0.85;}
 .photo-input{width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:8px;font-size:0.95rem;}
 .logo{font-size:1.5rem;margin-bottom:0.5rem;text-align:center;}
+.voice-wrap{display:flex;align-items:flex-start;gap:0.4rem;}
+.voice-wrap .voice-field{flex:1;min-width:0;}
+.voice-btn{flex-shrink:0;background:#3949ab;border:none;border-radius:8px;padding:0.65rem 0.8rem;cursor:pointer;font-size:1.1rem;line-height:1;color:#fff;box-shadow:0 2px 4px rgba(0,0,0,0.15);}
+.voice-btn.recording{background:#c62828;box-shadow:0 0 0 3px rgba(198,40,40,0.3);}
+@keyframes mic-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.3);}}
+.voice-btn.recording .mic-icon{display:inline-block;animation:mic-pulse 0.7s infinite;}
 </style>
 </head>
 <body>
@@ -91,6 +97,46 @@ h1{color:var(--primary);font-size:1.4rem;margin-bottom:0.2rem;}
 </div>
 
 <script>
+/* ── Voice Input (same logic as base.html) ─────────────────────────── */
+(function(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return;
+  function addVoiceBtn(field){
+    if(field.closest('.voice-wrap')) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'voice-wrap';
+    field.parentNode.insertBefore(wrap, field);
+    field.classList.add('voice-field');
+    wrap.appendChild(field);
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'voice-btn';
+    btn.title = 'Tap to speak';
+    btn.innerHTML = '<span class="mic-icon">🎤</span>';
+    wrap.appendChild(btn);
+    var rec = null;
+    btn.addEventListener('click', function(){
+      if(rec){ rec.stop(); return; }
+      rec = new SR();
+      rec.lang = 'en-US';
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+      btn.classList.add('recording');
+      rec.onresult = function(e){
+        var text = e.results[0][0].transcript;
+        if(field.value && !field.value.endsWith(' ')) field.value += ' ';
+        field.value += text;
+      };
+      rec.onerror = function(e){
+        if(e.error === 'not-allowed') alert('Microphone blocked. Allow mic access in your browser and try again.');
+      };
+      rec.onend = function(){ btn.classList.remove('recording'); rec = null; };
+      rec.start();
+    });
+  }
+  document.querySelectorAll('textarea,input[type=text]').forEach(addVoiceBtn);
+})();
+
 var isEmerg = false;
 function toggleEmerg(){
   isEmerg = !isEmerg;

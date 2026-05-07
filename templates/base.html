@@ -115,6 +115,12 @@ tr:hover{background:#fafbff;}
   .hide-mobile{display:none!important;}
   .mob-cards{display:block;}
 }
+/* ── Responsive 2-column grid ────────────────────────────────────────── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.two-col-main{display:grid;grid-template-columns:2fr 1fr;gap:1rem;}
+@media(max-width:700px){
+  .two-col,.two-col-main{grid-template-columns:1fr!important;}
+}
 </style>
 {% block extra_css %}{% endblock %}
 <style>

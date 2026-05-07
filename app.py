@@ -685,6 +685,8 @@ def wo_update(id):
     wo.category        = request.form.get('category', wo.category)
     wo.estimated_hours = safe_float(request.form.get('estimated_hours'))
     wo.scheduled_date  = safe_date(request.form.get('scheduled_date'))
+    if request.form.get('due_date') is not None:
+        wo.due_date = safe_date(request.form.get('due_date'))
 
     if old_status != wo.status:
         if wo.status == 'In Progress' and not wo.started_at:
