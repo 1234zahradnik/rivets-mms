@@ -73,7 +73,14 @@
 
 <div class="form-group">
 <label>Assigned To</label>
-<input type="text" name="assigned_to" value="{{ wo.assigned_to or '' }}" placeholder="Technician name">
+<select name="assigned_to">
+<option value="">— Unassigned —</option>
+{% for u in tech_users %}
+<option value="{{ u.display_name or u.username }}" {% if wo.assigned_to == (u.display_name or u.username) %}selected{% endif %}>
+  {{ u.display_name or u.username }} ({{ u.role }})
+</option>
+{% endfor %}
+</select>
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">

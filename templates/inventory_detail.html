@@ -34,26 +34,63 @@
 </div>
 
 <div class="card">
-<h3>Adjust Stock</h3>
-<form method="post" action="{{ url_for('inventory_adjust', id=item.id) }}">
-<div class="form-group">
-<label>Current Qty: <strong>{{ item.quantity_on_hand }}</strong></label>
+<h3>Stock on Hand</h3>
+
+<div style="text-align:center;margin-bottom:1.25rem;">
+<div style="font-size:3rem;font-weight:700;color:{% if item.is_low_stock %}var(--danger){% elif item.quantity_on_hand == 0 %}#999{% else %}var(--success){% endif %};">
+  {{ item.quantity_on_hand }}
 </div>
-<div class="form-group">
-<label>New Quantity</label>
-<input type="number" name="quantity" value="{{ item.quantity_on_hand }}" min="0">
+<div style="color:#666;font-size:0.9rem;">{{ item.unit_of_measure }} on hand</div>
+{% if item.is_low_stock %}
+<div style="margin-top:0.5rem;padding:0.4rem 0.75rem;background:#ffebee;color:#c62828;border-radius:6px;font-size:0.85rem;font-weight:600;">
+  ⚠️ Below minimum ({{ item.min_stock_level }}) — time to reorder
 </div>
-<div class="form-group">
-<label>Reason / Notes</label>
-<input type="text" name="notes" placeholder="e.g., Cycle count, received shipment...">
+{% endif %}
 </div>
-<div class="form-group">
-<label>Performed By</label>
-<input type="text" name="performed_by" placeholder="Your name">
+
+<details open>
+<summary style="cursor:pointer;font-weight:600;font-size:0.9rem;margin-bottom:0.75rem;user-select:none;">📥 Receive / Add Stock</summary>
+<form method="post" action="{{ url_for('inventory_adjust', id=item.id) }}" style="margin-top:0.5rem;">
+<input type="hidden" name="notes" value="Stock received">
+<div style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+<div class="form-group" style="margin-bottom:0;flex:1;min-width:80px;">
+<label style="font-size:0.85rem;">Add how many?</label>
+<input type="number" id="receive-qty" value="1" min="1" style="font-size:1rem;font-weight:600;">
 </div>
-<button type="submit" class="btn btn-primary">Update Stock</button>
+<div class="form-group" style="margin-bottom:0;flex:2;min-width:120px;">
+<label style="font-size:0.85rem;">Note (optional)</label>
+<input type="text" name="notes" placeholder="e.g., Received from Grainger">
+</div>
+<button type="submit" class="btn btn-success" onclick="setReceive()" style="white-space:nowrap;">✓ Add to Stock</button>
+</div>
+<input type="hidden" name="quantity" id="receive-final" value="{{ item.quantity_on_hand + 1 }}">
 </form>
+</details>
+
+<details style="margin-top:0.75rem;">
+<summary style="cursor:pointer;font-weight:600;font-size:0.9rem;margin-bottom:0.75rem;user-select:none;">✏️ Set Exact Count (cycle count)</summary>
+<form method="post" action="{{ url_for('inventory_adjust', id=item.id) }}" style="margin-top:0.5rem;">
+<div style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+<div class="form-group" style="margin-bottom:0;flex:1;min-width:80px;">
+<label style="font-size:0.85rem;">Actual count on shelf</label>
+<input type="number" name="quantity" value="{{ item.quantity_on_hand }}" min="0" style="font-size:1rem;font-weight:600;">
 </div>
+<button type="submit" class="btn btn-primary" style="white-space:nowrap;">Update Count</button>
+</div>
+<input type="hidden" name="notes" value="Cycle count adjustment">
+</form>
+</details>
+</div>
+
+{% block extra_js %}
+<script>
+function setReceive(){
+  var qty = parseInt(document.getElementById('receive-qty').value) || 1;
+  document.getElementById('receive-final').value = {{ item.quantity_on_hand }} + qty;
+}
+document.getElementById('receive-qty').addEventListener('input', setReceive);
+</script>
+{% endblock %}
 </div>
 
 <div class="card">

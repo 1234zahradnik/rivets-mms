@@ -37,6 +37,22 @@
 </div>
 </div>
 
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+<div class="form-group">
+<label>Install / Purchase Date</label>
+<input type="date" name="install_date" value="{{ machine.install_date.strftime('%Y-%m-%d') if machine and machine.install_date else '' }}">
+</div>
+<div class="form-group">
+<label>How Critical Is This Machine?</label>
+<span class="hint">Helps prioritize repairs. High = production stops if it goes down.</span>
+<select name="criticality">
+<option value="Low" {% if machine and machine.criticality == 'Low' %}selected{% endif %}>Low — Not critical</option>
+<option value="Medium" {% if not machine or machine.criticality == 'Medium' %}selected{% endif %}>Medium — Slows production</option>
+<option value="High" {% if machine and machine.criticality == 'High' %}selected{% endif %}>High — Production stops</option>
+</select>
+</div>
+</div>
+
 <div class="form-group">
 <label>Notes</label>
 <textarea name="notes" placeholder="General notes about this machine...">{{ machine.notes if machine else '' }}</textarea>

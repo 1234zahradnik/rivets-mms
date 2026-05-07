@@ -537,10 +537,11 @@ def wo_detail(id):
         except (json.JSONDecodeError, ValueError):
             pass
 
-    comments = WOComment.query.filter_by(wo_id=id).order_by(WOComment.created_at).all()
+    comments  = WOComment.query.filter_by(wo_id=id).order_by(WOComment.created_at).all()
+    tech_users = cq(User).filter(User.is_active == True).order_by(User.display_name).all()
     return render_template('wo_detail.html', wo=wo,
                            inventory=inventory, parts_used_detail=parts_used_detail,
-                           comments=comments)
+                           comments=comments, tech_users=tech_users)
 
 
 @app.route('/work-orders/<int:id>/update', methods=['POST'])
