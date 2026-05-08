@@ -389,6 +389,15 @@ def dashboard():
                 (WorkOrder.priority == 'High', 1), else_=2)
     ).all()
 
+    # WOs needing manager approval
+    needs_approval = []
+    if current_user.is_manager_or_above:
+        needs_approval = cq(WorkOrder).filter_by(status='Requested').order_by(
+            db.case((WorkOrder.priority == 'Emergency', 0),
+                    (WorkOrder.priority == 'High', 1), else_=2),
+            WorkOrder.created_at
+        ).all()
+
     return render_template('dashboard.html',
                            open_wos=open_wos, overdue=overdue,
                            low_stock=low_stock, machines_down=machines_down,
@@ -397,7 +406,8 @@ def dashboard():
                            recent_wos=recent_wos, recent_history=recent_history,
                            upcoming_pm=upcoming_pm, my_jobs=my_jobs,
                            team_workload=team_workload,
-                           scheduled_today=scheduled_today)
+                           scheduled_today=scheduled_today,
+                           needs_approval=needs_approval)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -960,6 +970,65 @@ View Low Stock →</a></p>
 
     flash('Work order closed out.', 'success')
     return redirect(url_for('wo_detail', id=id))
+
+
+@app.route('/work-orders/<int:id>/approve', methods=['POST'])
+@login_required
+def wo_approve(id):
+    require_manager()
+    wo = cget(WorkOrder, id)
+    if wo.status != 'Requested':
+        flash('Only Requested work orders can be approved.', 'warning')
+        return redirect(url_for('wo_detail', id=id))
+    old_status = wo.status
+    wo.status = 'Approved'
+    db.session.add(WOStatusLog(
+        wo_id=wo.id, from_status=old_status, to_status='Approved',
+        changed_by=current_user.display_name or current_user.username
+    ))
+    db.session.commit()
+    if wo.requester_email:
+        _send_email(
+            subject=f"[Rivet MMS] Approved: {wo.wo_number} — {wo.title}",
+            recipients=[wo.requester_email],
+            body_html=f"""
+<h2 style="color:#2e7d32;">✅ Your maintenance request was approved</h2>
+<p><strong>{wo.wo_number} — {wo.title}</strong></p>
+<p>Maintenance has reviewed and approved your request. It will be scheduled and worked on soon.</p>
+<p style="color:#888;font-size:0.9rem;">You'll receive another update when it's completed.</p>
+"""
+        )
+    flash(f'{wo.wo_number} approved.', 'success')
+    return redirect(request.referrer or url_for('wo_detail', id=id))
+
+
+@app.route('/work-orders/<int:id>/reject', methods=['POST'])
+@login_required
+def wo_reject(id):
+    require_manager()
+    wo = cget(WorkOrder, id)
+    reason = request.form.get('reason', '').strip()
+    old_status = wo.status
+    wo.status = 'Cancelled'
+    wo.completion_notes = f"Not approved: {reason}" if reason else "Not approved by manager"
+    db.session.add(WOStatusLog(
+        wo_id=wo.id, from_status=old_status, to_status='Cancelled',
+        changed_by=current_user.display_name or current_user.username
+    ))
+    db.session.commit()
+    if wo.requester_email:
+        _send_email(
+            subject=f"[Rivet MMS] Update on your request: {wo.wo_number}",
+            recipients=[wo.requester_email],
+            body_html=f"""
+<h2 style="color:#c62828;">Your maintenance request was not approved</h2>
+<p><strong>{wo.wo_number} — {wo.title}</strong></p>
+<p><strong>Reason:</strong> {reason or 'No reason provided'}</p>
+<p style="color:#555;font-size:0.9rem;">If you believe this is a safety issue, please speak with your supervisor directly.</p>
+"""
+        )
+    flash(f'{wo.wo_number} rejected.', 'success')
+    return redirect(request.referrer or url_for('dashboard'))
 
 
 @app.route('/work-orders/<int:id>/comment', methods=['POST'])

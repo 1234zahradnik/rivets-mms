@@ -73,6 +73,22 @@
 </div>
 
 <div>
+{% if current_user.is_manager_or_above and wo.status == 'Requested' %}
+<div style="background:#f0f5ff;border:2px solid #c5cae9;border-radius:8px;padding:1rem;margin-bottom:1rem;">
+<h3 style="font-size:1rem;color:#1565c0;margin-bottom:0.4rem;">⏳ This request needs your approval</h3>
+<p style="font-size:0.85rem;color:#555;margin-bottom:0.75rem;">Approve it to add to the work queue, or reject it with a reason.</p>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+<form method="post" action="{{ url_for('wo_approve', id=wo.id) }}" style="display:inline;">
+<button type="submit" class="btn btn-success">✓ Approve</button>
+</form>
+<form method="post" action="{{ url_for('wo_reject', id=wo.id) }}" style="display:inline;display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">
+<input type="text" name="reason" placeholder="Reason for rejection (optional)" style="padding:0.45rem 0.65rem;border:1px solid var(--border);border-radius:6px;font-size:0.88rem;min-width:220px;">
+<button type="submit" class="btn btn-danger" onclick="return confirm('Reject and cancel this work order?')">✗ Reject</button>
+</form>
+</div>
+</div>
+{% endif %}
+
 <form method="post" action="{{ url_for('wo_update', id=wo.id) }}">
 <h3 style="font-size:1rem;color:var(--primary);margin-bottom:0.5rem;">Update Work Order</h3>
 

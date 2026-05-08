@@ -45,6 +45,36 @@
 </div>
 {% endif %}
 
+{% if needs_approval %}
+<div class="card" style="border-left:4px solid #1565c0;background:#f0f5ff;margin-bottom:1rem;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem;">
+<h2 style="margin-bottom:0;color:#1565c0;">⏳ Needs Your Approval ({{ needs_approval|length }})</h2>
+<a href="{{ url_for('work_orders', status='Requested') }}" style="font-size:0.85rem;color:var(--primary);">View all &rsaquo;</a>
+</div>
+{% for wo in needs_approval %}
+<div style="background:#fff;border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.6rem;border:1px solid #c5cae9;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+<div style="flex:1;min-width:0;">
+<div style="font-weight:600;font-size:0.95rem;"><a href="{{ url_for('wo_detail', id=wo.id) }}" style="color:var(--primary);">{{ wo.wo_number }}</a> — {{ wo.title[:55] }}{% if wo.title|length > 55 %}...{% endif %}</div>
+<div style="font-size:0.8rem;color:#666;margin-top:0.2rem;">
+<span class="badge badge-{{ wo.priority|lower }}">{{ wo.priority }}</span>
+{% if wo.machine %} · {{ wo.machine.name }}{% endif %}
+ · {{ wo.requester_name or 'Anonymous' }} · {{ (today - wo.created_at.date()).days }}d ago
+</div>
+</div>
+<div style="display:flex;gap:0.4rem;align-items:center;flex-shrink:0;flex-wrap:wrap;">
+<form method="post" action="{{ url_for('wo_approve', id=wo.id) }}" style="display:inline;">
+<button type="submit" class="btn btn-success btn-sm">✓ Approve</button>
+</form>
+<form method="post" action="{{ url_for('wo_reject', id=wo.id) }}" style="display:inline;display:flex;gap:0.3rem;align-items:center;">
+<input type="text" name="reason" placeholder="Reason…" style="padding:0.3rem 0.5rem;border:1px solid #ddd;border-radius:4px;font-size:0.8rem;width:130px;">
+<button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Reject this request?')">✗</button>
+</form>
+</div>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+
 {% if emergency_wos %}
 <div class="alert" style="background:#fff3e0;border:1px solid #ffcc80;border-left:4px solid var(--accent);">
 <strong>&#9889; {{ emergency_wos|length }} High-Priority WO{{ 's' if emergency_wos|length != 1 else '' }} Need Attention:</strong>
