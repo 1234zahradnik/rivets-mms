@@ -189,23 +189,51 @@
 <textarea name="completion_notes" placeholder="What was done, parts replaced, observations...">{{ wo.completion_notes }}</textarea>
 </div>
 
-<h4 style="font-size:0.95rem;margin:1rem 0 0.5rem;">Parts Used</h4>
-<div style="max-height:200px;overflow-y:auto;">
-<table style="font-size:0.85rem;">
-<thead>
-<tr><th>Part</th><th>In Stock</th><th>Qty Used</th></tr>
-</thead>
-<tbody>
-{% for item in inventory %}
-<tr>
-<td>{{ item.name }} ({{ item.part_number }})</td>
-<td>{{ item.quantity_on_hand }}</td>
-<td><input type="number" name="part_qty_{{ item.id }}" value="0" min="0" max="{{ item.quantity_on_hand }}" style="width:60px;"></td>
-</tr>
-{% endfor %}
-</tbody>
-</table>
+<h4 style="font-size:0.95rem;margin:1rem 0 0.35rem;">Parts Used</h4>
+
+<!-- QR scanner button -->
+<button type="button" id="scan-part-btn" onclick="openPartScanner()"
+  style="background:#3949ab;color:#fff;border:none;border-radius:8px;padding:0.55rem 1rem;font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:0.6rem;">
+  📷 Scan Part QR Code
+</button>
+
+<!-- Camera modal -->
+<div id="scan-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2000;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:1rem;max-width:400px;width:94%;text-align:center;">
+    <p style="font-weight:700;margin-bottom:0.5rem;font-size:1rem;">Point camera at part label QR</p>
+    <div style="position:relative;background:#000;border-radius:8px;overflow:hidden;margin-bottom:0.75rem;">
+      <video id="scan-video" autoplay playsinline muted style="width:100%;display:block;max-height:300px;object-fit:cover;"></video>
+      <div style="position:absolute;inset:0;border:3px solid #ff6f00;border-radius:8px;pointer-events:none;"></div>
+    </div>
+    <canvas id="scan-canvas" style="display:none;"></canvas>
+    <div id="scan-status" style="font-size:0.85rem;color:#666;margin-bottom:0.75rem;min-height:1.2em;">Scanning…</div>
+    <button type="button" onclick="closePartScanner()" style="background:#eee;color:#333;border:none;border-radius:8px;padding:0.55rem 1.2rem;cursor:pointer;font-size:0.9rem;">Cancel</button>
+  </div>
 </div>
+
+<!-- Scanned parts list (dynamically added) -->
+<div id="scanned-list" style="margin-bottom:0.5rem;"></div>
+
+<!-- Full parts list (collapsed) -->
+<details style="margin-top:0.25rem;">
+  <summary style="cursor:pointer;font-size:0.85rem;color:#3949ab;font-weight:600;margin-bottom:0.4rem;user-select:none;">📦 Browse all parts manually</summary>
+  <div style="max-height:200px;overflow-y:auto;margin-top:0.4rem;">
+  <table style="font-size:0.85rem;">
+  <thead>
+  <tr><th>Part</th><th>In Stock</th><th>Qty Used</th></tr>
+  </thead>
+  <tbody>
+  {% for item in inventory %}
+  <tr id="manual-row-{{ item.id }}">
+  <td>{{ item.name }} <span style="color:#999;">({{ item.part_number }})</span></td>
+  <td>{{ item.quantity_on_hand }}</td>
+  <td><input type="number" id="manqty-{{ item.id }}" name="part_qty_{{ item.id }}" value="0" min="0" max="{{ item.quantity_on_hand }}" style="width:60px;"></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+  </table>
+  </div>
+</details>
 
 <div class="form-group" style="margin-top:1rem;">
 <label>Completion Photo (optional)</label>
@@ -319,4 +347,108 @@ Created as <span class="badge badge-{{ log.to_status|lower|replace(' ', '-') }}"
 {% endif %}
 </div>
 
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+/* ── Part QR Scanner ──────────────────────────────────────────────────── */
+var scanStream = null;
+var scanRaf = null;
+var scannedIds = {};
+
+function openPartScanner(){
+  var modal = document.getElementById('scan-modal');
+  modal.style.display = 'flex';
+  document.getElementById('scan-status').textContent = 'Starting camera…';
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
+    .then(function(stream){
+      scanStream = stream;
+      var vid = document.getElementById('scan-video');
+      vid.srcObject = stream;
+      vid.onloadedmetadata = function(){ vid.play(); scanFrame(); };
+    })
+    .catch(function(err){
+      document.getElementById('scan-status').textContent = 'Camera blocked: ' + err.message;
+    });
+}
+
+function scanFrame(){
+  var vid = document.getElementById('scan-video');
+  var cvs = document.getElementById('scan-canvas');
+  if(!vid.videoWidth){ scanRaf = requestAnimationFrame(scanFrame); return; }
+  cvs.width = vid.videoWidth;
+  cvs.height = vid.videoHeight;
+  var ctx = cvs.getContext('2d');
+  ctx.drawImage(vid, 0, 0);
+  var img = ctx.getImageData(0, 0, cvs.width, cvs.height);
+  var code = jsQR(img.data, img.width, img.height, {inversionAttempts:'dontInvert'});
+  if(code){
+    var m = code.data.match(/\/inventory\/(\d+)\/scan/);
+    if(m){
+      closePartScanner();
+      addScannedPart(parseInt(m[1]));
+      return;
+    }
+    document.getElementById('scan-status').textContent = 'Not a part QR — keep scanning…';
+  }
+  scanRaf = requestAnimationFrame(scanFrame);
+}
+
+function closePartScanner(){
+  if(scanRaf){ cancelAnimationFrame(scanRaf); scanRaf = null; }
+  if(scanStream){ scanStream.getTracks().forEach(function(t){ t.stop(); }); scanStream = null; }
+  document.getElementById('scan-modal').style.display = 'none';
+}
+
+function addScannedPart(partId){
+  // If already in the manual list, highlight and scroll to it
+  var manRow = document.getElementById('manual-row-' + partId);
+  if(manRow && !scannedIds[partId]){
+    // Pull it into the scanned list instead
+  }
+  if(scannedIds[partId]){
+    // Already added — just flash it
+    var row = document.getElementById('scanned-row-' + partId);
+    row.style.outline = '3px solid #ff6f00';
+    setTimeout(function(){ row.style.outline = ''; }, 1200);
+    return;
+  }
+  fetch('/api/inventory/' + partId + '/lookup')
+    .then(function(r){ return r.json(); })
+    .then(function(p){
+      scannedIds[partId] = true;
+      // Remove any manual row for this part so we don't double-count
+      if(manRow){ var manInp = document.getElementById('manqty-' + partId); if(manInp) manInp.value = 0; }
+      var list = document.getElementById('scanned-list');
+      var div = document.createElement('div');
+      div.id = 'scanned-row-' + partId;
+      div.style.cssText = 'display:flex;align-items:center;gap:0.6rem;background:#e8eaf6;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:0.4rem;border:2px solid #3949ab;';
+      var stockColor = p.is_low_stock ? '#c62828' : '#2e7d32';
+      div.innerHTML =
+        '<div style="flex:1;min-width:0;">' +
+        '<div style="font-weight:700;font-size:0.9rem;">' + p.name + '</div>' +
+        '<div style="font-size:0.78rem;color:#666;">' + p.part_number + (p.location ? ' · ' + p.location : '') + '</div>' +
+        '<div style="font-size:0.78rem;font-weight:600;color:' + stockColor + ';">On hand: ' + p.quantity_on_hand + ' ' + p.unit_of_measure + '</div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:0.35rem;flex-shrink:0;">' +
+        '<label style="font-size:0.78rem;color:#666;">Qty:</label>' +
+        '<input type="number" name="part_qty_' + partId + '" value="1" min="0" max="' + p.quantity_on_hand + '" style="width:56px;font-size:1rem;font-weight:700;padding:0.25rem 0.35rem;border:1px solid #ccc;border-radius:6px;">' +
+        '</div>' +
+        '<button type="button" onclick="removeScanned(' + partId + ')" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#c62828;padding:0 0.2rem;">✕</button>';
+      list.appendChild(div);
+    })
+    .catch(function(){ alert('Could not look up part. Try again.'); });
+}
+
+function removeScanned(partId){
+  delete scannedIds[partId];
+  var el = document.getElementById('scanned-row-' + partId);
+  if(el) el.remove();
+}
+
+// Close modal on outside tap
+document.getElementById('scan-modal').addEventListener('click', function(e){
+  if(e.target === this) closePartScanner();
+});
+</script>
+{% endblock %}
 {% endblock %}

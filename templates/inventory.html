@@ -52,6 +52,7 @@
 <th>Min</th>
 <th>Cost</th>
 <th>Quick Adjust</th>
+<th></th>
 </tr>
 </thead>
 <tbody>
@@ -80,6 +81,7 @@
 <button type="submit" class="btn btn-sm btn-primary" id="save-{{ item.id }}" style="display:none;padding:0.2rem 0.5rem;">✓</button>
 </form>
 </td>
+<td><a href="{{ url_for('inventory_scan', id=item.id) }}" class="btn btn-sm" style="background:#e8eaf6;color:#283593;padding:0.2rem 0.5rem;" title="Scan / mobile">📱</a></td>
 </tr>
 {% endfor %}
 </tbody>
@@ -114,6 +116,7 @@
   onclick="quickAdj('m{{ item.id }}', 1)">+</button>
 <button type="submit" class="btn btn-sm btn-primary" id="save-m{{ item.id }}" style="display:none;padding:0.3rem 0.6rem;">✓ Save</button>
 </form>
+<a href="{{ url_for('inventory_scan', id=item.id) }}" class="btn btn-sm" style="background:#e8eaf6;color:#283593;padding:0.3rem 0.7rem;">📱 Scan</a>
 </div>
 </div>
 {% endfor %}

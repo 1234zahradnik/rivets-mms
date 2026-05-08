@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}{{ item.name }} — Scan{% endblock %}
+{% block content %}
+<style>
+.scan-page{max-width:480px;margin:0 auto;}
+.stock-big{font-size:3.5rem;font-weight:800;line-height:1;text-align:center;}
+.scan-card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.1);padding:1.25rem;margin-bottom:1rem;}
+.scan-form-title{font-weight:700;font-size:1rem;color:var(--primary);margin-bottom:0.75rem;}
+.big-btn{width:100%;padding:0.9rem;font-size:1.05rem;font-weight:700;border:none;border-radius:8px;cursor:pointer;}
+</style>
+
+<div class="scan-page">
+
+<!-- Part header -->
+<div class="scan-card" style="text-align:center;">
+  <div style="font-size:0.8rem;color:#888;margin-bottom:0.25rem;">{{ item.part_number }}{% if item.location %} · {{ item.location }}{% endif %}</div>
+  <h2 style="font-size:1.3rem;margin-bottom:0.75rem;">{{ item.name }}</h2>
+  <div class="stock-big" style="color:{% if item.is_low_stock %}var(--danger){% elif item.quantity_on_hand == 0 %}#999{% else %}var(--success){% endif %};">
+    {{ item.quantity_on_hand }}
+  </div>
+  <div style="color:#666;font-size:0.9rem;margin-top:0.2rem;">{{ item.unit_of_measure }} on hand</div>
+  {% if item.is_low_stock %}
+  <div style="margin-top:0.5rem;padding:0.35rem 0.75rem;background:#ffebee;color:var(--danger);border-radius:6px;font-size:0.85rem;font-weight:600;display:inline-block;">
+    ⚠ LOW STOCK — min {{ item.min_stock_level }}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Receive stock -->
+<div class="scan-card">
+  <div class="scan-form-title">📥 Receive Stock</div>
+  <form method="post" action="{{ url_for('inventory_adjust', id=item.id) }}" onsubmit="calcReceive()">
+    <div style="display:flex;gap:0.6rem;align-items:flex-end;">
+      <div style="flex:1;">
+        <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">How many to add?</label>
+        <input type="number" id="recv-qty" value="1" min="1" style="font-size:1.3rem;font-weight:700;width:100%;padding:0.6rem;border:1px solid var(--border);border-radius:8px;">
+      </div>
+      <input type="hidden" name="quantity" id="recv-final" value="{{ item.quantity_on_hand + 1 }}">
+      <input type="hidden" name="notes" value="Received via QR scan">
+      <button type="submit" class="big-btn" style="background:var(--success);color:#fff;flex-shrink:0;width:auto;padding:0.6rem 1rem;">✓ Add</button>
+    </div>
+    <input type="text" name="notes" placeholder="Supplier / PO # (optional)" style="margin-top:0.5rem;width:100%;padding:0.5rem 0.7rem;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;">
+  </form>
+</div>
+
+<!-- Use part (manual deduct) -->
+<div class="scan-card">
+  <div class="scan-form-title">🔩 Use Part (manual deduct)</div>
+  <form method="post" action="{{ url_for('inventory_adjust', id=item.id) }}" onsubmit="calcUse()">
+    <div style="display:flex;gap:0.6rem;align-items:flex-end;">
+      <div style="flex:1;">
+        <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Qty used</label>
+        <input type="number" id="use-qty" value="1" min="1" max="{{ item.quantity_on_hand }}" style="font-size:1.3rem;font-weight:700;width:100%;padding:0.6rem;border:1px solid var(--border);border-radius:8px;">
+      </div>
+      <input type="hidden" name="quantity" id="use-final" value="{{ [item.quantity_on_hand - 1, 0] | max }}">
+      <input type="hidden" name="notes" id="use-notes-hidden" value="Used (QR scan)">
+      <button type="submit" class="big-btn" style="background:var(--accent);color:#fff;flex-shrink:0;width:auto;padding:0.6rem 1rem;">✓ Use</button>
+    </div>
+    {% if open_wos %}
+    <select id="use-wo" style="margin-top:0.5rem;width:100%;padding:0.5rem 0.7rem;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;">
+      <option value="">— Link to Work Order (optional) —</option>
+      {% for wo in open_wos %}
+      <option value="{{ wo.wo_number }}">{{ wo.wo_number }} — {{ wo.title[:40] }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+  </form>
+</div>
+
+<!-- QR code for printing label -->
+<div class="scan-card" style="text-align:center;">
+  <div class="scan-form-title" style="text-align:center;">🏷 Part Label (print to attach to bin)</div>
+  <div id="part-qr" style="display:inline-block;margin:0.5rem 0;"></div>
+  <br>
+  <div style="font-size:0.75rem;color:#888;margin-bottom:0.75rem;">{{ item.part_number }} — {{ item.name[:30] }}</div>
+  <button onclick="window.print()" class="btn btn-sm" style="background:#eee;color:#333;">🖨️ Print Label</button>
+  <a href="{{ url_for('inventory_detail', id=item.id) }}" class="btn btn-sm" style="background:#e8eaf6;color:#283593;">View Full Details</a>
+</div>
+
+</div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+var curQty = {{ item.quantity_on_hand }};
+
+function calcReceive(){
+  var add = parseInt(document.getElementById('recv-qty').value) || 1;
+  document.getElementById('recv-final').value = curQty + add;
+}
+document.getElementById('recv-qty').addEventListener('input', calcReceive);
+
+function calcUse(){
+  var use = parseInt(document.getElementById('use-qty').value) || 1;
+  document.getElementById('use-final').value = Math.max(0, curQty - use);
+  var wo = document.getElementById('use-wo');
+  if(wo && wo.value){
+    document.getElementById('use-notes-hidden').value = 'Used on ' + wo.value;
+  }
+}
+document.getElementById('use-qty').addEventListener('input', calcUse);
+var useWo = document.getElementById('use-wo');
+if(useWo) useWo.addEventListener('change', calcUse);
+
+new QRCode(document.getElementById('part-qr'), {
+  text: window.location.href,
+  width: 130, height: 130,
+  colorDark: '#1a237e',
+  colorLight: '#ffffff',
+  correctLevel: QRCode.CorrectLevel.M
+});
+</script>
+{% endblock %}
+{% endblock %}

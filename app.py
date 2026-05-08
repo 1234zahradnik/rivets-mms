@@ -1240,6 +1240,32 @@ def inventory_detail(id):
     return render_template('inventory_detail.html', item=item, transactions=transactions)
 
 
+@app.route('/inventory/<int:id>/scan')
+@login_required
+def inventory_scan(id):
+    item = cget(InventoryItem, id)
+    open_wos = cq(WorkOrder).filter(
+        WorkOrder.status.notin_(['Completed', 'Cancelled'])
+    ).order_by(WorkOrder.created_at.desc()).limit(20).all()
+    return render_template('inventory_scan.html', item=item, open_wos=open_wos)
+
+
+@app.route('/api/inventory/<int:id>/lookup')
+@login_required
+def inventory_lookup(id):
+    item = cget(InventoryItem, id)
+    return jsonify({
+        'id': item.id,
+        'name': item.name,
+        'part_number': item.part_number,
+        'quantity_on_hand': item.quantity_on_hand,
+        'unit_of_measure': item.unit_of_measure,
+        'location': item.location,
+        'unit_cost': item.unit_cost,
+        'is_low_stock': item.is_low_stock
+    })
+
+
 @app.route('/inventory/<int:id>/adjust', methods=['POST'])
 @login_required
 def inventory_adjust(id):
