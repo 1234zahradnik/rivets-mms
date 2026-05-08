@@ -231,6 +231,26 @@ class WOComment(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class WOStatusLog(db.Model):
+    __tablename__ = 'wo_status_log'
+    id          = db.Column(db.Integer, primary_key=True)
+    wo_id       = db.Column(db.Integer, db.ForeignKey('work_orders.id'), nullable=False)
+    from_status = db.Column(db.String(20), default='')
+    to_status   = db.Column(db.String(20), nullable=False)
+    changed_by  = db.Column(db.String(100), default='')
+    changed_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class WOAttachment(db.Model):
+    __tablename__ = 'wo_attachments'
+    id          = db.Column(db.Integer, primary_key=True)
+    wo_id       = db.Column(db.Integer, db.ForeignKey('work_orders.id'), nullable=False)
+    filename    = db.Column(db.String(255), nullable=False)
+    label       = db.Column(db.String(100), default='')
+    uploaded_by = db.Column(db.String(100), default='')
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class Notification(db.Model):
     __tablename__ = 'notifications'
     id         = db.Column(db.Integer, primary_key=True)

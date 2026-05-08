@@ -49,12 +49,26 @@
 <h3 style="font-size:1rem;color:var(--primary);margin:1rem 0 0.5rem;">Description</h3>
 <p style="white-space:pre-wrap;">{{ wo.description or 'No description provided.' }}</p>
 
+{% if wo.attachment or extra_attachments %}
+<h3 style="font-size:1rem;color:var(--primary);margin:1rem 0 0.5rem;">Photos</h3>
 {% if wo.attachment %}
-<h3 style="font-size:1rem;color:var(--primary);margin:1rem 0 0.5rem;">Photo</h3>
+<div style="margin-bottom:0.5rem;">
+<p style="font-size:0.8rem;color:#888;margin-bottom:0.3rem;">Report Photo</p>
 <a href="{{ url_for('uploaded_file', filename=wo.attachment) }}" target="_blank">
 <img src="{{ url_for('uploaded_file', filename=wo.attachment) }}"
-  style="max-width:100%;max-height:300px;border-radius:6px;border:1px solid var(--border);">
+  style="max-width:100%;max-height:260px;border-radius:6px;border:1px solid var(--border);">
 </a>
+</div>
+{% endif %}
+{% for att in extra_attachments %}
+<div style="margin-bottom:0.5rem;">
+<p style="font-size:0.8rem;color:#888;margin-bottom:0.3rem;">{{ att.label or 'Photo' }} — {{ att.uploaded_by }} — {{ att.uploaded_at.strftime('%b %d %Y') }}</p>
+<a href="{{ url_for('uploaded_file', filename=att.filename) }}" target="_blank">
+<img src="{{ url_for('uploaded_file', filename=att.filename) }}"
+  style="max-width:100%;max-height:260px;border-radius:6px;border:1px solid var(--border);">
+</a>
+</div>
+{% endfor %}
 {% endif %}
 </div>
 
@@ -83,7 +97,7 @@
 </select>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+<div class="two-col">
 <div class="form-group">
 <label>Priority</label>
 <select name="priority">
@@ -127,7 +141,7 @@
 {% if wo.status not in ['Completed', 'Cancelled'] %}
 <hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border);">
 
-<form method="post" action="{{ url_for('wo_close', id=wo.id) }}">
+<form method="post" action="{{ url_for('wo_close', id=wo.id) }}" enctype="multipart/form-data">
 <h3 style="font-size:1rem;color:var(--success);margin-bottom:0.5rem;">Close Out Work Order</h3>
 
 <div class="two-col">
@@ -177,7 +191,13 @@
 </table>
 </div>
 
-<button type="submit" class="btn btn-success" style="margin-top:1rem;">✓ Close Out Work Order</button>
+<div class="form-group" style="margin-top:1rem;">
+<label>Completion Photo (optional)</label>
+<span class="hint">Take a picture showing the repair is done — before you pack up tools.</span>
+<input type="file" name="completion_photo" accept="image/*" capture="environment" style="font-size:0.9rem;">
+</div>
+
+<button type="submit" class="btn btn-success" style="margin-top:0.5rem;">✓ Close Out Work Order</button>
 </form>
 {% endif %}
 </div>
@@ -221,6 +241,33 @@
 <p style="color:#666;font-size:0.9rem;">No parts recorded.</p>
 {% endif %}
 </div>
+</div>
+</div>
+{% endif %}
+
+<!-- ── Status Timeline ──────────────────────────────────────────────── -->
+{% if status_logs %}
+<div class="card" style="margin-top:1rem;">
+<h2 style="margin-bottom:0.75rem;">🕐 Status History</h2>
+<div style="position:relative;padding-left:1.5rem;">
+<div style="position:absolute;left:0.55rem;top:0;bottom:0;width:2px;background:var(--border);"></div>
+{% for log in status_logs %}
+<div style="position:relative;margin-bottom:0.75rem;">
+<div style="position:absolute;left:-1.05rem;top:0.2rem;width:10px;height:10px;border-radius:50%;background:{% if log.to_status == 'Completed' %}var(--success){% elif log.to_status == 'Cancelled' %}var(--danger){% elif log.to_status == 'In Progress' %}var(--accent){% else %}var(--primary){% endif %};border:2px solid #fff;box-shadow:0 0 0 2px var(--border);"></div>
+<div style="background:#f8f9ff;border-radius:6px;padding:0.4rem 0.7rem;border:1px solid var(--border);">
+<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:0.3rem;">
+<span style="font-size:0.85rem;font-weight:600;">
+{% if log.from_status %}
+<span style="color:#888;">{{ log.from_status }}</span> → <span class="badge badge-{{ log.to_status|lower|replace(' ', '-') }}">{{ log.to_status }}</span>
+{% else %}
+Created as <span class="badge badge-{{ log.to_status|lower|replace(' ', '-') }}">{{ log.to_status }}</span>
+{% endif %}
+</span>
+<span style="font-size:0.78rem;color:#999;">{{ log.changed_at.strftime('%b %d %Y %I:%M %p') }} — {{ log.changed_by }}</span>
+</div>
+</div>
+</div>
+{% endfor %}
 </div>
 </div>
 {% endif %}

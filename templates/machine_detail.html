@@ -15,6 +15,10 @@
 </span>
 <a href="{{ url_for('machine_edit', id=machine.id) }}" class="btn btn-sm" style="background:#eee;color:#333;">✏️ Edit</a>
 <a href="{{ url_for('wo_request') }}?machine_id={{ machine.id }}" class="btn btn-accent btn-sm">+ New WO</a>
+{% if current_user.is_manager_or_above and machine.status != 'Decommissioned' %}
+<button onclick="document.getElementById('decommission-panel').style.display='block';this.style.display='none';"
+  class="btn btn-sm" style="background:#f5f5f5;color:#c62828;border:1px solid #ffcdd2;">🗄️ Decommission</button>
+{% endif %}
 </div>
 </div>
 </div>
@@ -58,7 +62,7 @@
 <label>Description</label>
 <textarea name="description" placeholder="What happened?" required></textarea>
 </div>
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;">
+<div class="three-col">
 <div class="form-group">
 <label>Technician</label>
 <input type="text" name="technician">
@@ -126,6 +130,31 @@
 <a href="{{ url_for('wo_request') }}" class="btn btn-accent btn-sm">Create WO</a>
 {% endif %}
 </div>
+
+{% if current_user.is_manager_or_above %}
+<div id="decommission-panel" style="display:none;" class="card" style="border:2px solid #ffcdd2;background:#fff8f8;">
+<h3 style="color:#c62828;margin-bottom:0.5rem;">Decommission {{ machine.name }}?</h3>
+<p style="font-size:0.9rem;color:#555;margin-bottom:1rem;">This marks the machine as retired/decommissioned. It will no longer appear in normal views. Existing work orders and history are preserved. You can reactivate it at any time.</p>
+<div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+<form method="post" action="{{ url_for('machine_set_status', id=machine.id) }}" style="display:inline;">
+<input type="hidden" name="status" value="Decommissioned">
+<button type="submit" class="btn btn-danger btn-sm">Yes, Decommission</button>
+</form>
+<button onclick="document.getElementById('decommission-panel').style.display='none';document.querySelector('[onclick*=decommission-panel]').style.display='';"
+  class="btn btn-sm" style="background:#eee;color:#333;">Cancel</button>
+</div>
+</div>
+
+{% if machine.status == 'Decommissioned' %}
+<div class="card" style="border:2px solid #c8e6c9;background:#f1f8e9;">
+<p style="font-size:0.9rem;color:#2e7d32;margin-bottom:0.75rem;"><strong>This machine is decommissioned.</strong> It is no longer active.</p>
+<form method="post" action="{{ url_for('machine_set_status', id=machine.id) }}" style="display:inline;">
+<input type="hidden" name="status" value="Active">
+<button type="submit" class="btn btn-sm" style="background:#2e7d32;color:#fff;">↺ Reactivate Machine</button>
+</form>
+</div>
+{% endif %}
+{% endif %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>

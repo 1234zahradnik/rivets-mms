@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort, make_response, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_mail import Mail, Message
-from models import db, Company, Machine, MachineHistory, WorkOrder, InventoryItem, InventoryTransaction, User, WOComment, Notification, PMSchedule
+from models import db, Company, Machine, MachineHistory, WorkOrder, InventoryItem, InventoryTransaction, User, WOComment, Notification, PMSchedule, WOStatusLog, WOAttachment
 from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
 from utils import safe_date, safe_float, safe_int, build_csv, paginate
@@ -380,6 +380,15 @@ def dashboard():
         if not any(t['count'] > 0 for t in team_workload):
             team_workload = []
 
+    # WOs scheduled for today
+    scheduled_today = cq(WorkOrder).filter(
+        WorkOrder.scheduled_date == date.today(),
+        WorkOrder.status.notin_(['Completed', 'Cancelled'])
+    ).order_by(
+        db.case((WorkOrder.priority == 'Emergency', 0),
+                (WorkOrder.priority == 'High', 1), else_=2)
+    ).all()
+
     return render_template('dashboard.html',
                            open_wos=open_wos, overdue=overdue,
                            low_stock=low_stock, machines_down=machines_down,
@@ -387,7 +396,8 @@ def dashboard():
                            emergency_wos=emergency_wos,
                            recent_wos=recent_wos, recent_history=recent_history,
                            upcoming_pm=upcoming_pm, my_jobs=my_jobs,
-                           team_workload=team_workload)
+                           team_workload=team_workload,
+                           scheduled_today=scheduled_today)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -695,6 +705,12 @@ def wo_request():
             machine = cget(Machine, wo.machine_id)
             machine.status = 'Down'
 
+        db.session.add(WOStatusLog(
+            wo_id=wo.id,
+            from_status='',
+            to_status='Requested',
+            changed_by=current_user.display_name or current_user.username
+        ))
         db.session.commit()
 
         # Notify managers about emergency or high-priority
@@ -749,11 +765,14 @@ def wo_detail(id):
         except (json.JSONDecodeError, ValueError):
             pass
 
-    comments  = WOComment.query.filter_by(wo_id=id).order_by(WOComment.created_at).all()
+    comments         = WOComment.query.filter_by(wo_id=id).order_by(WOComment.created_at).all()
+    status_logs      = WOStatusLog.query.filter_by(wo_id=id).order_by(WOStatusLog.changed_at).all()
+    extra_attachments = WOAttachment.query.filter_by(wo_id=id).order_by(WOAttachment.uploaded_at).all()
     tech_users = cq(User).filter(User.is_active == True).order_by(User.display_name).all()
     return render_template('wo_detail.html', wo=wo,
                            inventory=inventory, parts_used_detail=parts_used_detail,
-                           comments=comments, tech_users=tech_users)
+                           comments=comments, tech_users=tech_users,
+                           status_logs=status_logs, extra_attachments=extra_attachments)
 
 
 @app.route('/work-orders/<int:id>/update', methods=['POST'])
@@ -773,6 +792,12 @@ def wo_update(id):
         wo.due_date = safe_date(request.form.get('due_date'))
 
     if old_status != wo.status:
+        db.session.add(WOStatusLog(
+            wo_id=wo.id,
+            from_status=old_status,
+            to_status=wo.status,
+            changed_by=current_user.display_name or current_user.username
+        ))
         if wo.status == 'In Progress' and not wo.started_at:
             wo.started_at = datetime.utcnow()
         if wo.status in ('Completed', 'Cancelled') and not wo.completed_at:
@@ -823,6 +848,7 @@ def wo_close(id):
         flash('Already closed.', 'warning')
         return redirect(url_for('wo_detail', id=id))
 
+    old_status          = wo.status
     wo.status           = 'Completed'
     wo.completed_at     = datetime.utcnow()
     wo.actual_hours     = safe_float(request.form.get('actual_hours'))
@@ -854,6 +880,28 @@ def wo_close(id):
                     ))
 
     wo.parts_used = json.dumps(parts_data) if parts_data else ''
+
+    # Completion photo
+    f = request.files.get('completion_photo')
+    if f and f.filename:
+        ext = os.path.splitext(f.filename)[1].lower()
+        if ext in ALLOWED_EXTENSIONS:
+            fname = secure_filename(f"{wo.wo_number}_complete{ext}")
+            f.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+            db.session.add(WOAttachment(
+                wo_id=wo.id,
+                filename=fname,
+                label='Completion Photo',
+                uploaded_by=current_user.display_name or current_user.username
+            ))
+
+    # Log status change
+    db.session.add(WOStatusLog(
+        wo_id=wo.id,
+        from_status=old_status,
+        to_status='Completed',
+        changed_by=current_user.display_name or current_user.username
+    ))
 
     # Notify managers about parts that hit low-stock after this WO
     low_parts = []

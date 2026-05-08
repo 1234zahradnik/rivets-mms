@@ -88,6 +88,43 @@
 </a>
 </div>
 
+{% if scheduled_today %}
+<div class="card" style="border-left:4px solid var(--accent);margin-bottom:1rem;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem;">
+<h2 style="margin-bottom:0;">📅 Scheduled Today — {{ today.strftime('%b %d') }}</h2>
+<span style="font-size:0.85rem;color:#666;">{{ scheduled_today|length }} job{{ 's' if scheduled_today|length != 1 else '' }}</span>
+</div>
+<table class="hide-mobile">
+<thead><tr><th>WO#</th><th>What needs doing</th><th>Machine</th><th>Assigned To</th><th>Priority</th><th>Status</th></tr></thead>
+<tbody>
+{% for wo in scheduled_today %}
+<tr style="{% if wo.priority == 'Emergency' %}background:#fff0f0;{% elif wo.priority == 'High' %}background:#fff8ee;{% endif %}">
+<td><a href="{{ url_for('wo_detail', id=wo.id) }}" style="font-weight:600;">{{ wo.wo_number }}</a></td>
+<td>{{ wo.title[:45] }}{% if wo.title|length > 45 %}...{% endif %}</td>
+<td style="color:#666;font-size:0.85rem;">{{ wo.machine.name if wo.machine else '—' }}</td>
+<td style="font-size:0.85rem;">{{ wo.assigned_to or '—' }}</td>
+<td><span class="badge badge-{{ wo.priority|lower }}">{{ wo.priority }}</span></td>
+<td><span class="badge badge-{{ wo.status|lower|replace(' ', '-') }}">{{ wo.status }}</span></td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+<div class="mob-cards">
+{% for wo in scheduled_today %}
+<div class="mob-card {% if wo.priority == 'Emergency' %}emerg{% elif wo.priority == 'High' %}high{% endif %}">
+<div class="mob-card-title"><a href="{{ url_for('wo_detail', id=wo.id) }}">{{ wo.wo_number }}</a> — {{ wo.title[:50] }}{% if wo.title|length > 50 %}...{% endif %}</div>
+<div class="mob-card-meta">
+<span class="badge badge-{{ wo.priority|lower }}">{{ wo.priority }}</span>
+<span class="badge badge-{{ wo.status|lower|replace(' ', '-') }}">{{ wo.status }}</span>
+{% if wo.machine %}<span>⚙️ {{ wo.machine.name }}</span>{% endif %}
+{% if wo.assigned_to %}<span>👷 {{ wo.assigned_to }}</span>{% endif %}
+</div>
+</div>
+{% endfor %}
+</div>
+</div>
+{% endif %}
+
 {% if open_wos == 0 and not machines_down_list %}
 <div class="card" style="border:2px dashed #b0c4de;background:#f0f5ff;text-align:center;padding:2rem;">
 <div style="font-size:2.5rem;margin-bottom:0.5rem;">👋</div>
