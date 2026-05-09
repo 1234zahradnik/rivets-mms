@@ -53,7 +53,7 @@ h1{color:var(--primary);font-size:1.4rem;margin-bottom:0.2rem;}
 
 <button type="button" class="emerg-btn" id="emerg-btn" onclick="toggleEmerg()">⚡ Is this an EMERGENCY?</button>
 
-<form method="post" enctype="multipart/form-data">
+<form method="post" enctype="multipart/form-data" id="report-form">
 <input type="hidden" name="priority" id="prio-val" value="Medium">
 
 <div class="form-group">
@@ -93,8 +93,14 @@ h1{color:var(--primary);font-size:1.4rem;margin-bottom:0.2rem;}
 </div>
 
 <div class="form-group">
-<label>Photo <span style="font-weight:400;color:#888;">(optional)</span></label>
-<input type="file" name="photo" accept="image/*" capture="environment" class="photo-input">
+<label>📷 Photos <span style="font-weight:400;color:#888;">(optional — up to 5)</span></label>
+<input type="file" name="photos" accept="image/*" multiple id="photo-input" style="display:none" onchange="handlePhotoChange(this)">
+<div id="photo-drop" onclick="document.getElementById('photo-input').click()"
+  style="border:2px dashed #bbb;border-radius:8px;padding:1rem;text-align:center;cursor:pointer;background:#fafafa;transition:border-color 0.2s;">
+  <span id="photo-hint" style="color:#888;font-size:0.95rem;">📷 Tap to take or choose photos</span>
+  <div id="photo-thumbs" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.6rem;justify-content:center;"></div>
+</div>
+<span class="hint">You can select multiple photos at once from your gallery, or take them one at a time with your camera.</span>
 </div>
 
 <button type="submit" class="submit-btn">📨 Submit to Maintenance</button>
@@ -142,6 +148,53 @@ h1{color:var(--primary);font-size:1.4rem;margin-bottom:0.2rem;}
   document.querySelectorAll('textarea,input[type=text]').forEach(addVoiceBtn);
 })();
 
+/* ── Multi-photo preview ─────────────────────────────────────────── */
+var allFiles = [];
+function handlePhotoChange(input){
+  var newFiles = Array.from(input.files);
+  newFiles.forEach(function(f){
+    if(allFiles.length < 5) allFiles.push(f);
+  });
+  input.value = '';
+  renderThumbs();
+}
+function renderThumbs(){
+  var drop = document.getElementById('photo-drop');
+  var hint = document.getElementById('photo-hint');
+  var thumbs = document.getElementById('photo-thumbs');
+  thumbs.innerHTML = '';
+  if(allFiles.length === 0){
+    hint.textContent = '📷 Tap to take or choose photos';
+    drop.style.borderColor = '#bbb';
+    return;
+  }
+  hint.textContent = allFiles.length + ' photo' + (allFiles.length > 1 ? 's' : '') + ' selected — tap to add more';
+  drop.style.borderColor = '#1a237e';
+  allFiles.forEach(function(f, i){
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;width:64px;height:64px;flex-shrink:0;';
+    var img = document.createElement('img');
+    img.style.cssText = 'width:64px;height:64px;object-fit:cover;border-radius:6px;border:2px solid #1a237e;';
+    var reader = new FileReader();
+    reader.onload = function(e){ img.src = e.target.result; };
+    reader.readAsDataURL(f);
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = '×';
+    del.style.cssText = 'position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#c62828;color:#fff;border:none;cursor:pointer;font-size:12px;line-height:18px;text-align:center;padding:0;';
+    del.onclick = function(e){ e.stopPropagation(); allFiles.splice(i,1); renderThumbs(); };
+    wrap.appendChild(img);
+    wrap.appendChild(del);
+    thumbs.appendChild(wrap);
+  });
+}
+
+function buildFormData(form){
+  var fd = new FormData(form);
+  allFiles.forEach(function(f){ fd.append('photos', f); });
+  return fd;
+}
+
 var isEmerg = false;
 function toggleEmerg(){
   isEmerg = !isEmerg;
@@ -179,7 +232,7 @@ var tourSteps = [
   { sel: 'textarea[name=description]', title: '📋 More detail (optional)', text: 'What did you see, hear, or smell? When did it start? The more detail you give, the faster it gets fixed. Tap 🎤 to speak instead of type.' },
   { sel: 'input[name=requester_name]', title: '👤 Your name (optional)', text: 'So maintenance knows who to follow up with. You can leave it blank but it helps if they have questions.' },
   { sel: '.prio-row', title: '🔥 How urgent is it?', text: 'Low = can wait a few days. Medium = needs attention this week. High = needs to be done today. Emergency = machine is down right now.' },
-  { sel: 'input[name=photo]', title: '📷 Take a photo (optional)', text: 'A quick picture helps maintenance diagnose the problem before they even walk over. Tap to open your camera.' },
+  { sel: '#photo-drop', title: '📷 Add photos (optional)', text: 'A picture helps maintenance diagnose the problem before they walk over. Tap the photo area to open your camera or gallery. You can attach up to 5 photos.' },
   { sel: '.submit-btn', title: '✅ All done — hit Submit!', text: 'That\'s it! Your request goes straight to the maintenance team. If it\'s an emergency, they\'ll be notified immediately.' }
 ];
 var tourIdx = 0;
@@ -252,6 +305,22 @@ function tourEnd(){
 if(!localStorage.getItem('rpt_tour_done')){
   window.addEventListener('load', function(){ setTimeout(startTour, 600); });
 }
+
+// Intercept submit to inject allFiles into FormData
+document.getElementById('report-form').addEventListener('submit', function(e){
+  if(allFiles.length === 0) return; // nothing extra, let normal submit proceed
+  e.preventDefault();
+  var btn = this.querySelector('.submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Submitting…';
+  var fd = buildFormData(this);
+  fetch(window.location.href, { method: 'POST', body: fd })
+    .then(function(r){ return r.text(); })
+    .then(function(html){
+      document.open(); document.write(html); document.close();
+    })
+    .catch(function(){ btn.disabled=false; btn.textContent='📨 Submit to Maintenance'; alert('Submit failed. Please try again.'); });
+});
 </script>
 </body>
 </html>

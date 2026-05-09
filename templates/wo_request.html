@@ -106,11 +106,14 @@
 </div>
 </details>
 
-<!-- ── PHOTO ───────────────────────────────────────────────────────── -->
+<!-- ── PHOTOS ──────────────────────────────────────────────────────── -->
 <div class="form-group">
-<label style="font-size:1rem;font-weight:600;">Photo <span style="font-weight:400;color:#888;">(optional — snap a pic of the problem)</span></label>
-<input type="file" name="photo" accept="image/*" capture="environment"
-  style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:0.9rem;">
+<label style="font-size:1rem;font-weight:600;">Photos <span style="font-weight:400;color:#888;">(optional — select one or more)</span></label>
+<input type="file" name="photos" accept="image/*" multiple
+  id="photo-input"
+  style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:0.9rem;"
+  onchange="previewPhotos(this)">
+<div id="photo-previews" style="display:none;margin-top:0.75rem;display:flex;flex-wrap:wrap;gap:0.5rem;"></div>
 </div>
 
 <button type="submit" class="btn btn-accent"
@@ -169,6 +172,22 @@ window.tourSteps = [
     text: 'You\'re done! Tap Submit and your request goes straight to the maintenance team. They\'ll be notified right away.'
   }
 ];
+
+function previewPhotos(input) {
+  var container = document.getElementById('photo-previews');
+  container.innerHTML = '';
+  container.style.display = 'flex';
+  Array.from(input.files).forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = document.createElement('img');
+      img.src = e.target.result;
+      img.style.cssText = 'height:80px;width:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);';
+      container.appendChild(img);
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 var isEmergency = false;
 

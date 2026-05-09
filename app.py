@@ -663,13 +663,26 @@ def public_report(slug):
         db.session.flush()
         wo.wo_number = f"WO-{_dt.now().year}-{wo.id:05d}"
 
-        f = request.files.get('photo')
-        if f and f.filename:
+        photos = request.files.getlist('photos') or ([request.files.get('photo')] if request.files.get('photo') and request.files.get('photo').filename else [])
+        for idx, f in enumerate(photos):
+            if not f or not f.filename:
+                continue
             ext = os.path.splitext(f.filename)[1].lower()
-            if ext in ALLOWED_EXTENSIONS:
+            if ext not in ALLOWED_EXTENSIONS:
+                continue
+            if idx == 0:
                 fname = secure_filename(f"{wo.wo_number}{ext}")
                 f.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                 wo.attachment = fname
+            else:
+                fname = secure_filename(f"{wo.wo_number}_p{idx}{ext}")
+                f.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                db.session.add(WOAttachment(
+                    wo_id=wo.id,
+                    filename=fname,
+                    label='Photo',
+                    uploaded_by=wo.requester_name or 'Anonymous'
+                ))
 
         if priority == 'Emergency' and machine_id:
             m = Machine.query.filter_by(id=machine_id, company_id=company.id).first()
@@ -703,13 +716,26 @@ def wo_request():
         db.session.add(wo)
         db.session.flush()
         wo.wo_number = _next_wo_number()
-        f = request.files.get('photo')
-        if f and f.filename:
+        photos = request.files.getlist('photos')
+        for idx, f in enumerate(photos):
+            if not f or not f.filename:
+                continue
             ext = os.path.splitext(f.filename)[1].lower()
-            if ext in ALLOWED_EXTENSIONS:
+            if ext not in ALLOWED_EXTENSIONS:
+                continue
+            if idx == 0:
                 fname = secure_filename(f"{wo.wo_number}{ext}")
                 f.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                 wo.attachment = fname
+            else:
+                fname = secure_filename(f"{wo.wo_number}_p{idx}{ext}")
+                f.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                db.session.add(WOAttachment(
+                    wo_id=wo.id,
+                    filename=fname,
+                    label='Photo',
+                    uploaded_by=wo.requester_name or current_user.display_name or current_user.username
+                ))
         # Emergency WO → immediately mark machine as Down
         if wo.priority == 'Emergency' and wo.machine_id:
             machine = cget(Machine, wo.machine_id)
