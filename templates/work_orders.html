@@ -8,15 +8,29 @@
 {% endblock %}
 {% block content %}
 
-<div class="card">
+<div style="display:flex;gap:0;margin-bottom:-1px;border-bottom:2px solid var(--primary);">
+  <a href="{{ url_for('work_orders') }}"
+     style="padding:0.6rem 1.2rem;font-weight:600;border-radius:6px 6px 0 0;text-decoration:none;
+            {% if status_filter != 'Requested' %}background:var(--primary);color:#fff;{% else %}background:#e8eaf6;color:#3949ab;{% endif %}">
+    📋 Work Orders
+  </a>
+  <a href="{{ url_for('work_orders', status='Requested') }}"
+     style="padding:0.6rem 1.2rem;font-weight:600;border-radius:6px 6px 0 0;text-decoration:none;margin-left:2px;
+            {% if status_filter == 'Requested' %}background:var(--primary);color:#fff;{% else %}background:#e8eaf6;color:#3949ab;{% endif %}">
+    📬 Requests
+  </a>
+</div>
+
+<div class="card" style="border-radius:0 6px 6px 6px;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
-<h2>Work Orders</h2>
+<h2>{% if status_filter == 'Requested' %}Work Order Requests{% else %}Work Orders{% endif %}</h2>
 <div style="display:flex;gap:0.5rem;">
 <a href="{{ url_for('work_orders_export') }}" class="btn btn-sm" style="background:#eee;color:#333;">📥 Export</a>
 <a href="{{ url_for('wo_request') }}" class="btn btn-accent">+ New Request</a>
 </div>
 </div>
 
+{% if status_filter != 'Requested' %}
 <div class="filters">
 <a href="{{ url_for('work_orders', assigned=current_user.display_name or current_user.username) }}"
    class="btn btn-sm" style="background:{% if assigned_filter %}var(--primary);color:#fff{% else %}#e8eaf6;color:#283593{% endif %};">
@@ -48,6 +62,7 @@
 <a href="{{ url_for('work_orders') }}" class="btn btn-sm" style="background:#eee;color:#333;">Clear</a>
 </form>
 </div>
+{% endif %}
 
 {% if wos %}
 <!-- Desktop table -->
@@ -106,8 +121,10 @@
 {% include 'pagination.html' %}
 
 {% else %}
-<p style="color:#666;">No work orders found.</p>
+<p style="color:#666;">{% if status_filter == 'Requested' %}No pending requests.{% else %}No work orders found.{% endif %}</p>
+{% if status_filter != 'Requested' %}
 <div style="margin-top:1rem;"><a href="{{ url_for('wo_request') }}" class="btn btn-accent">Create First Work Order</a></div>
+{% endif %}
 {% endif %}
 </div>
 
