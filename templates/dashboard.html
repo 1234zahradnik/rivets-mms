@@ -58,7 +58,7 @@
 <div style="font-size:0.8rem;color:#666;margin-top:0.2rem;">
 <span class="badge badge-{{ wo.priority|lower }}">{{ wo.priority }}</span>
 {% if wo.machine %} · {{ wo.machine.name }}{% endif %}
- · {{ wo.requester_name or 'Anonymous' }} · {{ (today - wo.created_at.date()).days }}d ago
+ · {{ wo.requester_name or 'Anonymous' }} · {{ (today - wo.created_at.date()).days if wo.created_at else 0 }}d ago
 </div>
 </div>
 <div style="display:flex;gap:0.4rem;align-items:center;flex-shrink:0;flex-wrap:wrap;">
@@ -217,7 +217,7 @@
 </thead>
 <tbody>
 {% for wo in recent_wos %}
-{% set age = (today - wo.created_at.date()).days %}
+{% set age = (today - wo.created_at.date()).days if wo.created_at else 0 %}
 <tr style="{% if wo.due_date and wo.due_date < today and wo.status not in ['Completed','Cancelled'] %}border-left:3px solid var(--danger);{% elif wo.priority == 'Emergency' %}border-left:3px solid var(--danger);{% elif wo.priority == 'High' %}border-left:3px solid var(--accent);{% endif %}">
 <td><a href="{{ url_for('wo_detail', id=wo.id) }}">{{ wo.wo_number }}</a></td>
 <td>{{ wo.title[:38] }}{% if wo.title|length > 38 %}...{% endif %}</td>
@@ -233,7 +233,7 @@
 </table>
 <div class="mob-cards">
 {% for wo in recent_wos %}
-{% set age = (today - wo.created_at.date()).days %}
+{% set age = (today - wo.created_at.date()).days if wo.created_at else 0 %}
 <div class="mob-card {% if wo.priority == 'Emergency' %}emerg{% elif wo.priority == 'High' %}high{% endif %}">
 <div class="mob-card-title"><a href="{{ url_for('wo_detail', id=wo.id) }}">{{ wo.wo_number }}</a> — {{ wo.title[:50] }}{% if wo.title|length > 50 %}...{% endif %}</div>
 <div class="mob-card-meta">

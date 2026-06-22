@@ -81,7 +81,7 @@
 </thead>
 <tbody>
 {% for wo in wos %}
-{% set age = (today - wo.created_at.date()).days %}
+{% set age = (today - wo.created_at.date()).days if wo.created_at else 0 %}
 {% set overdue_row = wo.due_date and wo.due_date < today and wo.status not in ['Completed','Cancelled'] %}
 <tr style="{% if overdue_row %}border-left:3px solid var(--danger);background:#fff5f5;{% elif wo.priority == 'Emergency' and wo.status not in ['Completed','Cancelled'] %}border-left:3px solid var(--danger);{% elif wo.priority == 'High' and wo.status not in ['Completed','Cancelled'] %}border-left:3px solid var(--accent);{% endif %}">
 <td><a href="{{ url_for('wo_detail', id=wo.id) }}">{{ wo.wo_number }}</a></td>
@@ -102,7 +102,7 @@
 <!-- Mobile cards -->
 <div class="mob-cards">
 {% for wo in wos %}
-{% set age = (today - wo.created_at.date()).days %}
+{% set age = (today - wo.created_at.date()).days if wo.created_at else 0 %}
 {% set overdue_row = wo.due_date and wo.due_date < today and wo.status not in ['Completed','Cancelled'] %}
 <div class="mob-card {% if wo.priority == 'Emergency' and wo.status not in ['Completed','Cancelled'] %}emerg{% elif wo.priority == 'High' and wo.status not in ['Completed','Cancelled'] %}high{% elif overdue_row %}overdue{% endif %}">
 <div class="mob-card-title"><a href="{{ url_for('wo_detail', id=wo.id) }}">{{ wo.wo_number }}</a> — {{ wo.title[:55] }}{% if wo.title|length > 55 %}...{% endif %}</div>
