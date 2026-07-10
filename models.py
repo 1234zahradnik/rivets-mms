@@ -289,3 +289,118 @@ class InventoryTransaction(db.Model):
             'performed_by': self.performed_by,
             'created_at': self.created_at.isoformat()
         }
+
+
+class Vendor(db.Model):
+    __tablename__ = 'vendors'
+    id           = db.Column(db.Integer, primary_key=True)
+    company_id   = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
+    name         = db.Column(db.String(200), nullable=False)
+    contact_name = db.Column(db.String(100), default='')
+    email        = db.Column(db.String(100), default='')
+    phone        = db.Column(db.String(50), default='')
+    address      = db.Column(db.Text, default='')
+    terms        = db.Column(db.String(50), default='Net 30')
+    is_active    = db.Column(db.Boolean, default=True)
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('company_id', 'name', name='uq_vendor_name_company'),
+    )
+
+    purchase_orders = db.relationship('PurchaseOrder', backref='vendor', lazy=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'name': self.name,
+            'contact_name': self.contact_name, 'email': self.email,
+            'phone': self.phone, 'address': self.address,
+            'terms': self.terms, 'is_active': self.is_active,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+class PurchaseOrder(db.Model):
+    __tablename__ = 'purchase_orders'
+    id            = db.Column(db.Integer, primary_key=True)
+    company_id    = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
+    po_number     = db.Column(db.String(20), nullable=False)
+    vendor_id     = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+    status        = db.Column(db.String(20), default='Draft')
+    created_by    = db.Column(db.String(100), default='')
+    created_at    = db.Column(db.DateTime, default=datetime.utcnow)
+    order_date    = db.Column(db.Date)
+    expected_date = db.Column(db.Date)
+    received_date = db.Column(db.Date)
+    shipping_cost = db.Column(db.Float, default=0)
+    tax_amount    = db.Column(db.Float, default=0)
+    notes         = db.Column(db.Text, default='')
+    linked_wo     = db.Column(db.Integer, db.ForeignKey('work_orders.id'), nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('company_id', 'po_number', name='uq_po_number_company'),
+    )
+
+    line_items = db.relationship('POLineItem', backref='po', lazy=True,
+                                 order_by='POLineItem.line_number',
+                                 cascade='all, delete-orphan')
+
+    @property
+    def subtotal(self):
+        return sum(li.total for li in self.line_items)
+
+    @property
+    def total(self):
+        return self.subtotal + (self.shipping_cost or 0) + (self.tax_amount or 0)
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'po_number': self.po_number,
+            'vendor_id': self.vendor_id,
+            'vendor_name': self.vendor.name if self.vendor else 'N/A',
+            'status': self.status,
+            'created_by': self.created_by,
+            'created_at': self.created_at.isoformat(),
+            'order_date': self.order_date.isoformat() if self.order_date else None,
+            'expected_date': self.expected_date.isoformat() if self.expected_date else None,
+            'received_date': self.received_date.isoformat() if self.received_date else None,
+            'shipping_cost': self.shipping_cost,
+            'tax_amount': self.tax_amount,
+            'subtotal': self.subtotal,
+            'total': self.total,
+            'line_item_count': len(self.line_items),
+            'notes': self.notes,
+            'linked_wo': self.linked_wo
+        }
+
+
+class POLineItem(db.Model):
+    __tablename__ = 'po_line_items'
+    id                = db.Column(db.Integer, primary_key=True)
+    po_id             = db.Column(db.Integer, db.ForeignKey('purchase_orders.id'), nullable=False)
+    line_number       = db.Column(db.Integer, nullable=False)
+    inventory_item_id = db.Column(db.Integer, db.ForeignKey('inventory.id'), nullable=True)
+    part_number       = db.Column(db.String(50), default='')
+    description       = db.Column(db.String(200), default='')
+    quantity_ordered  = db.Column(db.Integer, default=0)
+    quantity_received = db.Column(db.Integer, default=0)
+    unit_cost         = db.Column(db.Float, default=0)
+
+    inventory_item = db.relationship('InventoryItem', backref='po_line_items', lazy=True)
+
+    @property
+    def total(self):
+        return (self.quantity_ordered or 0) * (self.unit_cost or 0)
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'po_id': self.po_id,
+            'line_number': self.line_number,
+            'inventory_item_id': self.inventory_item_id,
+            'part_number': self.part_number,
+            'description': self.description,
+            'quantity_ordered': self.quantity_ordered,
+            'quantity_received': self.quantity_received,
+            'unit_cost': self.unit_cost,
+            'total': self.total
+        }

@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}{% if vendor %}Edit Vendor{% else %}Add Vendor{% endif %} - Rivet's CMMS{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:700px;margin:0 auto;">
+<h2>{% if vendor %}Edit Vendor{% else %}Add Vendor{% endif %}</h2>
+
+<form method="post">
+<div class="form-group">
+<label>Vendor Name *</label>
+<input type="text" name="name" value="{{ vendor.name if vendor else '' }}" required>
+</div>
+
+<div class="two-col">
+<div class="form-group">
+<label>Contact Name</label>
+<input type="text" name="contact_name" value="{{ vendor.contact_name if vendor else '' }}">
+</div>
+<div class="form-group">
+<label>Email</label>
+<input type="email" name="email" value="{{ vendor.email if vendor else '' }}">
+</div>
+</div>
+
+<div class="two-col">
+<div class="form-group">
+<label>Phone</label>
+<input type="text" name="phone" value="{{ vendor.phone if vendor else '' }}">
+</div>
+<div class="form-group">
+<label>Payment Terms</label>
+<select name="terms">
+  {% set current_terms = vendor.terms if vendor else 'Net 30' %}
+  <option value="Net 15" {% if current_terms == 'Net 15' %}selected{% endif %}>Net 15</option>
+  <option value="Net 30" {% if current_terms == 'Net 30' %}selected{% endif %}>Net 30</option>
+  <option value="Net 45" {% if current_terms == 'Net 45' %}selected{% endif %}>Net 45</option>
+  <option value="Net 60" {% if current_terms == 'Net 60' %}selected{% endif %}>Net 60</option>
+  <option value="Due on Receipt" {% if current_terms == 'Due on Receipt' %}selected{% endif %}>Due on Receipt</option>
+  <option value="COD" {% if current_terms == 'COD' %}selected{% endif %}>COD</option>
+</select>
+</div>
+</div>
+
+<div class="form-group">
+<label>Address</label>
+<textarea name="address" rows="2">{{ vendor.address if vendor else '' }}</textarea>
+</div>
+
+<div style="display:flex;gap:0.5rem;margin-top:1rem;">
+<button type="submit" class="btn btn-primary">{% if vendor %}Save Changes{% else %}Add Vendor{% endif %}</button>
+<a href="{{ url_for('vendors_list') }}" class="btn" style="background:#eee;color:#333;">Cancel</a>
+</div>
+</form>
+</div>
+
+{% endblock %}

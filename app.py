@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort, make_response, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_mail import Mail, Message
-from models import db, Company, Machine, MachineHistory, WorkOrder, InventoryItem, InventoryTransaction, User, WOComment, Notification, PMSchedule, WOStatusLog, WOAttachment
+from models import db, Company, Machine, MachineHistory, WorkOrder, InventoryItem, InventoryTransaction, User, WOComment, Notification, PMSchedule, WOStatusLog, WOAttachment, Vendor, PurchaseOrder, POLineItem
 from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
 from utils import safe_date, safe_float, safe_int, build_csv, paginate
@@ -79,6 +79,13 @@ def _next_wo_number():
     max_id = (db.session.query(db.func.max(WorkOrder.id))
               .filter_by(company_id=current_user.company_id).scalar()) or 0
     return f"WO-{datetime.now().year}-{max_id + 1:05d}"
+
+
+def _next_po_number():
+    """Sequential PO per company: PO-2026-00001"""
+    max_id = (db.session.query(db.func.max(PurchaseOrder.id))
+              .filter_by(company_id=current_user.company_id).scalar()) or 0
+    return f"PO-{datetime.now().year}-{max_id + 1:05d}"
 
 
 def _send_email(subject, recipients, body_html, body_text=''):
@@ -208,7 +215,7 @@ def register():
         db.session.commit()
 
         login_user(user)
-        flash(f"Welcome to Rivet's MMS, {username}! Your account is ready.", 'success')
+        flash(f"Welcome to Rivet's CMMS, {username}! Your account is ready.", 'success')
         return redirect(url_for('dashboard'))
     return render_template('register.html')
 
@@ -1086,7 +1093,7 @@ def admin_test_email():
         recipients=[to],
         body_html=f"""
 <h2>✅ Email is working!</h2>
-<p>This is a test message from <strong>Rivet's MMS</strong>.</p>
+<p>This is a test message from <strong>Rivet's CMMS</strong>.</p>
 <p>Your email notifications are configured correctly. You'll receive alerts for emergency work orders, assignments, and completed jobs.</p>
 <p style="color:#888;font-size:0.85rem;">Sent from {current_user.company.name}</p>
 """
@@ -1519,6 +1526,317 @@ def pm_delete(id):
     db.session.commit()
     flash('PM schedule deleted.', 'success')
     return redirect(url_for('pm_list'))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# VENDORS
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route('/vendors')
+@login_required
+def vendors_list():
+    require_manager()
+    vendors = cq(Vendor).order_by(Vendor.name).all()
+    return render_template('vendors.html', vendors=vendors)
+
+
+@app.route('/vendors/add', methods=['GET', 'POST'])
+@login_required
+def vendor_add():
+    require_manager()
+    if request.method == 'POST':
+        v = Vendor(
+            company_id=current_user.company_id,
+            name=request.form['name'],
+            contact_name=request.form.get('contact_name', ''),
+            email=request.form.get('email', ''),
+            phone=request.form.get('phone', ''),
+            address=request.form.get('address', ''),
+            terms=request.form.get('terms', 'Net 30')
+        )
+        db.session.add(v)
+        db.session.commit()
+        flash(f'Vendor {v.name} added.', 'success')
+        return redirect(url_for('vendors_list'))
+    return render_template('vendor_form.html', vendor=None)
+
+
+@app.route('/vendors/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def vendor_edit(id):
+    require_manager()
+    vendor = cq(Vendor).filter_by(id=id).first_or_404()
+    if request.method == 'POST':
+        vendor.name         = request.form['name']
+        vendor.contact_name = request.form.get('contact_name', '')
+        vendor.email        = request.form.get('email', '')
+        vendor.phone        = request.form.get('phone', '')
+        vendor.address      = request.form.get('address', '')
+        vendor.terms        = request.form.get('terms', 'Net 30')
+        db.session.commit()
+        flash('Vendor updated.', 'success')
+        return redirect(url_for('vendors_list'))
+    return render_template('vendor_form.html', vendor=vendor)
+
+
+@app.route('/vendors/<int:id>/delete', methods=['POST'])
+@login_required
+def vendor_delete(id):
+    require_manager()
+    vendor = cq(Vendor).filter_by(id=id).first_or_404()
+    vendor.is_active = False
+    db.session.commit()
+    flash(f'Vendor {vendor.name} deactivated.', 'success')
+    return redirect(url_for('vendors_list'))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PURCHASE ORDERS
+# ══════════════════════════════════════════════════════════════════════════════
+
+PO_STATUSES = ['Draft', 'Submitted', 'Approved', 'Ordered', 'Partially Received', 'Received', 'Closed', 'Cancelled']
+
+
+@app.route('/purchase-orders')
+@login_required
+def purchase_orders():
+    status_filter = request.args.get('status', '')
+    vendor_filter = request.args.get('vendor', '')
+    date_from     = request.args.get('date_from', '')
+    date_to       = request.args.get('date_to', '')
+    search        = request.args.get('q', '').strip()
+    page          = safe_int(request.args.get('page', 1), 1)
+
+    query = cq(PurchaseOrder)
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+    if vendor_filter:
+        query = query.filter_by(vendor_id=int(vendor_filter))
+    if date_from:
+        query = query.filter(PurchaseOrder.created_at >= safe_date(date_from))
+    if date_to:
+        query = query.filter(PurchaseOrder.created_at <= safe_date(date_to))
+    if search:
+        like = f'%{search}%'
+        query = query.join(Vendor, PurchaseOrder.vendor_id == Vendor.id).filter(
+            db.or_(PurchaseOrder.po_number.ilike(like), Vendor.name.ilike(like),
+                   PurchaseOrder.notes.ilike(like))
+        )
+
+    pos, total, pages = paginate(query.order_by(PurchaseOrder.created_at.desc()), page, app.config.get('PER_PAGE', 25))
+    vendors = cq(Vendor).filter_by(is_active=True).order_by(Vendor.name).all()
+    return render_template('purchase_orders.html', pos=pos,
+                           status_filter=status_filter, vendor_filter=vendor_filter,
+                           date_from=date_from, date_to=date_to, search=search,
+                           page=page, pages=pages, total=total, vendors=vendors)
+
+
+@app.route('/purchase-orders/new', methods=['GET', 'POST'])
+@login_required
+def po_new():
+    require_manager()
+    if request.method == 'POST':
+        po = PurchaseOrder(
+            company_id=current_user.company_id,
+            po_number='TMP',
+            vendor_id=int(request.form['vendor_id']),
+            created_by=current_user.display_name or current_user.username,
+            expected_date=safe_date(request.form.get('expected_date')),
+            shipping_cost=safe_float(request.form.get('shipping_cost')),
+            tax_amount=safe_float(request.form.get('tax_amount')),
+            notes=request.form.get('notes', ''),
+            linked_wo=safe_int(request.form.get('linked_wo')) or None
+        )
+        db.session.add(po)
+        db.session.flush()
+        po.po_number = _next_po_number()
+
+        # Parse line items from form
+        line_num = 1
+        while True:
+            desc_key = f'line_desc_{line_num}'
+            if desc_key not in request.form:
+                break
+            desc = request.form.get(desc_key, '').strip()
+            if not desc:
+                line_num += 1
+                continue
+            inv_id = safe_int(request.form.get(f'line_inv_{line_num}')) or None
+            part_num = request.form.get(f'line_part_{line_num}', '').strip()
+            qty = safe_int(request.form.get(f'line_qty_{line_num}'))
+            cost = safe_float(request.form.get(f'line_cost_{line_num}'))
+
+            if qty > 0:
+                db.session.add(POLineItem(
+                    po_id=po.id,
+                    line_number=line_num,
+                    inventory_item_id=inv_id,
+                    part_number=part_num,
+                    description=desc,
+                    quantity_ordered=qty,
+                    unit_cost=cost
+                ))
+            line_num += 1
+
+        db.session.commit()
+        flash(f'Purchase Order {po.po_number} created.', 'success')
+        return redirect(url_for('po_detail', id=po.id))
+
+    vendors = cq(Vendor).filter_by(is_active=True).order_by(Vendor.name).all()
+    inventory = cq(InventoryItem).filter_by(status='Active').order_by(InventoryItem.name).all()
+    open_wos = cq(WorkOrder).filter(
+        WorkOrder.status.notin_(['Completed', 'Cancelled'])
+    ).order_by(WorkOrder.created_at.desc()).limit(50).all()
+    return render_template('po_form.html', vendors=vendors, inventory=inventory, open_wos=open_wos)
+
+
+@app.route('/purchase-orders/<int:id>')
+@login_required
+def po_detail(id):
+    po = cq(PurchaseOrder).filter_by(id=id).first_or_404()
+    return render_template('po_detail.html', po=po)
+
+
+@app.route('/purchase-orders/<int:id>/submit', methods=['POST'])
+@login_required
+def po_submit(id):
+    po = cq(PurchaseOrder).filter_by(id=id).first_or_404()
+    if po.status != 'Draft':
+        flash('Only Draft POs can be submitted.', 'warning')
+        return redirect(url_for('po_detail', id=id))
+    po.status = 'Submitted'
+    db.session.commit()
+    _notify_managers(
+        title=f'PO Submitted: {po.po_number}',
+        message=f'Purchase order for {po.vendor.name} has been submitted for approval.',
+        link=url_for('po_detail', id=po.id),
+        icon='📋'
+    )
+    flash(f'{po.po_number} submitted for approval.', 'success')
+    return redirect(url_for('po_detail', id=id))
+
+
+@app.route('/purchase-orders/<int:id>/approve', methods=['POST'])
+@login_required
+def po_approve(id):
+    require_manager()
+    po = cq(PurchaseOrder).filter_by(id=id).first_or_404()
+    if po.status != 'Submitted':
+        flash('Only Submitted POs can be approved.', 'warning')
+        return redirect(url_for('po_detail', id=id))
+    po.status = 'Approved'
+    po.order_date = date.today()
+    db.session.commit()
+    flash(f'{po.po_number} approved.', 'success')
+    return redirect(url_for('po_detail', id=id))
+
+
+@app.route('/purchase-orders/<int:id>/reject', methods=['POST'])
+@login_required
+def po_reject(id):
+    require_manager()
+    po = cq(PurchaseOrder).filter_by(id=id).first_or_404()
+    if po.status != 'Submitted':
+        flash('Only Submitted POs can be rejected.', 'warning')
+        return redirect(url_for('po_detail', id=id))
+    reason = request.form.get('reason', '').strip()
+    po.status = 'Draft'
+    po.notes = (po.notes + '\nRejected: ' + reason) if reason else (po.notes + '\nRejected by manager')
+    db.session.commit()
+    flash(f'{po.po_number} returned to draft.', 'success')
+    return redirect(url_for('po_detail', id=id))
+
+
+@app.route('/purchase-orders/<int:id>/order', methods=['POST'])
+@login_required
+def po_order(id):
+    require_manager()
+    po = cq(PurchaseOrder).filter_by(id=id).first_or_404()
+    if po.status != 'Approved':
+        flash('Only Approved POs can be ordered.', 'warning')
+        return redirect(url_for('po_detail', id=id))
+    po.status = 'Ordered'
+    if not po.order_date:
+        po.order_date = date.today()
+    db.session.commit()
+    flash(f'{po.po_number} marked as ordered.', 'success')
+    return redirect(url_for('po_detail', id=id))
+
+
+@app.route('/purchase-orders/<int:id>/receive', methods=['POST'])
+@login_required
+def po_receive(id):
+    require_manager()
+    po = cq(PurchaseOrder).filter_by(id=id).first_or_404()
+    if po.status not in ('Ordered', 'Partially Received'):
+        flash('Only Ordered or Partially Received POs can receive items.', 'warning')
+        return redirect(url_for('po_detail', id=id))
+
+    all_received = True
+    any_received = False
+    for li in po.line_items:
+        qty_key = f'receive_qty_{li.id}'
+        qty = safe_int(request.form.get(qty_key))
+        if qty > 0:
+            any_received = True
+            li.quantity_received = (li.quantity_received or 0) + qty
+            # Update inventory
+            if li.inventory_item_id:
+                item = db.session.get(InventoryItem, li.inventory_item_id)
+                if item and item.company_id == current_user.company_id:
+                    item.quantity_on_hand = (item.quantity_on_hand or 0) + qty
+                    db.session.add(InventoryTransaction(
+                        item_id=item.id,
+                        transaction_type='Received',
+                        quantity=qty,
+                        unit_cost=li.unit_cost,
+                        reference_po=po.po_number,
+                        notes=f'Received on {po.po_number}',
+                        performed_by=current_user.display_name or current_user.username
+                    ))
+        if (li.quantity_received or 0) < (li.quantity_ordered or 0):
+            all_received = False
+
+    if any_received:
+        if all_received:
+            po.status = 'Received'
+            po.received_date = date.today()
+        else:
+            po.status = 'Partially Received'
+
+    db.session.commit()
+    flash(f'Items received on {po.po_number}.', 'success')
+    return redirect(url_for('po_detail', id=id))
+
+
+@app.route('/purchase-orders/<int:id>/close', methods=['POST'])
+@login_required
+def po_close(id):
+    require_manager()
+    po = cq(PurchaseOrder).filter_by(id=id).first_or_404()
+    if po.status in ('Closed', 'Cancelled'):
+        flash('PO is already closed or cancelled.', 'warning')
+        return redirect(url_for('po_detail', id=id))
+    po.status = 'Closed'
+    if not po.received_date:
+        po.received_date = date.today()
+    db.session.commit()
+    flash(f'{po.po_number} closed.', 'success')
+    return redirect(url_for('po_detail', id=id))
+
+
+@app.route('/purchase-orders/<int:id>/cancel', methods=['POST'])
+@login_required
+def po_cancel(id):
+    require_manager()
+    po = cq(PurchaseOrder).filter_by(id=id).first_or_404()
+    if po.status in ('Closed', 'Cancelled'):
+        flash('PO is already closed or cancelled.', 'warning')
+        return redirect(url_for('po_detail', id=id))
+    po.status = 'Cancelled'
+    db.session.commit()
+    flash(f'{po.po_number} cancelled.', 'success')
+    return redirect(url_for('po_detail', id=id))
 
 
 # ══════════════════════════════════════════════════════════════════════════════

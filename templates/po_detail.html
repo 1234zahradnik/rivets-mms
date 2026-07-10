@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+{% block title %}{{ po.po_number }} - Rivet's CMMS{% endblock %}
+{% block content %}
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+<div>
+<h2 style="margin-bottom:0.25rem;">📋 {{ po.po_number }}</h2>
+<div style="color:#666;font-size:0.85rem;">
+  <span class="badge badge-{{ po.status|lower|replace(' ', '-') }}">{{ po.status }}</span>
+  · Created {{ po.created_at.strftime('%b %d, %Y') }} by {{ po.created_by }}
+</div>
+</div>
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+<a href="{{ url_for('purchase_orders') }}" class="btn btn-sm" style="background:#eee;color:#333;">← Back to POs</a>
+</div>
+</div>
+
+<!-- Status Timeline -->
+<div style="display:flex;gap:0.3rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center;">
+{% set statuses = ['Draft', 'Submitted', 'Approved', 'Ordered', 'Partially Received', 'Received', 'Closed'] %}
+{% set current_idx = statuses.index(po.status) if po.status in statuses else -1 %}
+{% for s in statuses %}
+  {% if s == 'Partially Received' and po.status == 'Partially Received' %}
+    {% set done = true %}
+  {% elif s == 'Received' and po.status == 'Received' %}
+    {% set done = true %}
+  {% elif s == 'Closed' and po.status == 'Closed' %}
+    {% set done = true %}
+  {% else %}
+    {% set s_idx = statuses.index(s) %}
+    {% set done = s_idx < current_idx or (s_idx == current_idx and s == po.status) %}
+  {% endif %}
+  <span style="padding:0.3rem 0.6rem;border-radius:12px;font-size:0.75rem;font-weight:600;
+    {% if done %}background:var(--success);color:#fff;{% else %}background:#e0e0e0;color:#888;{% endif %}">
+    {{ '✅' if done else '○' }} {{ s }}
+  </span>
+{% endfor %}
+{% if po.status == 'Cancelled' %}
+  <span style="padding:0.3rem 0.6rem;border-radius:12px;font-size:0.75rem;font-weight:600;background:var(--danger);color:#fff;">❌ Cancelled</span>
+{% endif %}
+</div>
+
+<!-- PO Info -->
+<div class="two-col" style="margin-bottom:1.5rem;">
+<div>
+<table style="font-size:0.9rem;">
+<tr><td style="font-weight:600;padding:0.3rem 0.5rem;width:100px;">Vendor:</td><td>{{ po.vendor.name if po.vendor else 'N/A' }}</td></tr>
+{% if po.vendor and po.vendor.contact_name %}<tr><td style="font-weight:600;padding:0.3rem 0.5rem;">Contact:</td><td>{{ po.vendor.contact_name }}</td></tr>{% endif %}
+{% if po.vendor and po.vendor.email %}<tr><td style="font-weight:600;padding:0.3rem 0.5rem;">Email:</td><td>{{ po.vendor.email }}</td></tr>{% endif %}
+{% if po.vendor and po.vendor.phone %}<tr><td style="font-weight:600;padding:0.3rem 0.5rem;">Phone:</td><td>{{ po.vendor.phone }}</td></tr>{% endif %}
+{% if po.vendor and po.vendor.terms %}<tr><td style="font-weight:600;padding:0.3rem 0.5rem;">Terms:</td><td>{{ po.vendor.terms }}</td></tr>{% endif %}
+</table>
+</div>
+<div>
+<table style="font-size:0.9rem;">
+<tr><td style="font-weight:600;padding:0.3rem 0.5rem;width:100px;">Order Date:</td><td>{{ po.order_date.strftime('%b %d, %Y') if po.order_date else '—' }}</td></tr>
+<tr><td style="font-weight:600;padding:0.3rem 0.5rem;">Expected:</td><td>{{ po.expected_date.strftime('%b %d, %Y') if po.expected_date else '—' }}</td></tr>
+<tr><td style="font-weight:600;padding:0.3rem 0.5rem;">Received:</td><td>{{ po.received_date.strftime('%b %d, %Y') if po.received_date else '—' }}</td></tr>
+{% if po.linked_wo %}<tr><td style="font-weight:600;padding:0.3rem 0.5rem;">Linked WO:</td><td><a href="{{ url_for('wo_detail', id=po.linked_wo) }}">WO #{{ po.linked_wo }}</a></td></tr>{% endif %}
+</table>
+</div>
+</div>
+
+{% if po.notes %}
+<div style="margin-bottom:1rem;padding:0.75rem;background:#f9f9f9;border-radius:6px;font-size:0.9rem;white-space:pre-wrap;">{{ po.notes }}</div>
+{% endif %}
+
+<!-- Line Items -->
+<h3 style="margin-bottom:0.75rem;">Line Items</h3>
+{% if po.line_items %}
+<table class="hide-mobile">
+<thead>
+<tr>
+<th>#</th>
+<th>Part #</th>
+<th>Description</th>
+<th>Qty Ordered</th>
+<th>Qty Received</th>
+<th>Unit Cost</th>
+<th>Total</th>
+</tr>
+</thead>
+<tbody>
+{% for li in po.line_items %}
+<tr>
+<td>{{ li.line_number }}</td>
+<td>{{ li.part_number or '—' }}</td>
+<td>{{ li.description }}</td>
+<td>{{ li.quantity_ordered }}</td>
+<td>{{ li.quantity_received or 0 }}</td>
+<td>${{ '%.2f'|format(li.unit_cost) }}</td>
+<td>${{ '%.2f'|format(li.total) }}</td>
+</tr>
+{% endfor %}
+</tbody>
+<tfoot>
+<tr style="font-weight:700;background:#f0f4f8;">
+<td colspan="6" style="text-align:right;">Subtotal:</td>
+<td>${{ '%.2f'|format(po.subtotal) }}</td>
+</tr>
+{% if po.shipping_cost %}
+<tr style="background:#fafafa;">
+<td colspan="6" style="text-align:right;">Shipping:</td>
+<td>${{ '%.2f'|format(po.shipping_cost) }}</td>
+</tr>
+{% endif %}
+{% if po.tax_amount %}
+<tr style="background:#fafafa;">
+<td colspan="6" style="text-align:right;">Tax:</td>
+<td>${{ '%.2f'|format(po.tax_amount) }}</td>
+</tr>
+{% endif %}
+<tr style="font-weight:700;font-size:1.05rem;background:#e8eaf6;">
+<td colspan="6" style="text-align:right;">Total:</td>
+<td>${{ '%.2f'|format(po.total) }}</td>
+</tr>
+</tfoot>
+</table>
+
+<!-- Mobile line items -->
+<div class="mob-cards">
+{% for li in po.line_items %}
+<div class="mob-card">
+<div class="mob-card-title">{{ li.description }}</div>
+<div class="mob-card-meta">
+  {% if li.part_number %}<span>{{ li.part_number }}</span>{% endif %}
+  <span>📦 {{ li.quantity_ordered }} ordered</span>
+  {% if li.quantity_received %}<span style="color:var(--success);">✅ {{ li.quantity_received }} received</span>{% endif %}
+  <span style="font-weight:600;">${{ '%.2f'|format(li.unit_cost) }}/ea</span>
+  <span style="font-weight:700;">${{ '%.2f'|format(li.total) }}</span>
+</div>
+</div>
+{% endfor %}
+<div class="mob-card" style="background:#e8eaf6;font-weight:700;">
+<div class="mob-card-title">Total: ${{ '%.2f'|format(po.total) }}</div>
+<div class="mob-card-meta">
+  <span>Subtotal: ${{ '%.2f'|format(po.subtotal) }}</span>
+  {% if po.shipping_cost %}<span>Shipping: ${{ '%.2f'|format(po.shipping_cost) }}</span>{% endif %}
+  {% if po.tax_amount %}<span>Tax: ${{ '%.2f'|format(po.tax_amount) }}</span>{% endif %}
+</div>
+</div>
+</div>
+{% else %}
+<p style="color:#666;">No line items on this PO.</p>
+{% endif %}
+
+<!-- Action Buttons -->
+{% if current_user.is_manager_or_above %}
+<div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;flex-wrap:wrap;">
+
+  {% if po.status == 'Draft' %}
+  <form method="post" action="{{ url_for('po_submit', id=po.id) }}" style="display:inline;">
+    <button class="btn btn-accent">📤 Submit for Approval</button>
+  </form>
+  {% endif %}
+
+  {% if po.status == 'Submitted' %}
+  <form method="post" action="{{ url_for('po_approve', id=po.id) }}" style="display:inline;">
+    <button class="btn btn-success">✅ Approve</button>
+  </form>
+  <form method="post" action="{{ url_for('po_reject', id=po.id) }}" style="display:inline;" onsubmit="var r=prompt('Reason for rejection (optional):');if(r!==null){var inp=document.createElement('input');inp.type='hidden';inp.name='reason';inp.value=r;this.appendChild(inp);return true;}return false;">
+    <button class="btn btn-danger">❌ Reject</button>
+  </form>
+  {% endif %}
+
+  {% if po.status == 'Approved' %}
+  <form method="post" action="{{ url_for('po_order', id=po.id) }}" style="display:inline;">
+    <button class="btn btn-accent">📦 Mark as Ordered</button>
+  </form>
+  {% endif %}
+
+  {% if po.status in ('Ordered', 'Partially Received') %}
+  <form method="post" action="{{ url_for('po_receive', id=po.id) }}" style="display:inline;" id="receiveForm">
+    <button type="button" class="btn btn-success" onclick="showReceiveDialog()">📥 Receive Items</button>
+  </form>
+  {% endif %}
+
+  {% if po.status not in ('Closed', 'Cancelled', 'Draft') %}
+  <form method="post" action="{{ url_for('po_close', id=po.id) }}" style="display:inline;" onsubmit="return confirm('Close {{ po.po_number }}?');">
+    <button class="btn btn-sm" style="background:#e0e0e0;color:#333;">🔒 Close PO</button>
+  </form>
+  {% endif %}
+
+  {% if po.status not in ('Closed', 'Cancelled') %}
+  <form method="post" action="{{ url_for('po_cancel', id=po.id) }}" style="display:inline;" onsubmit="return confirm('Cancel {{ po.po_number }}? This cannot be undone.');">
+    <button class="btn btn-sm btn-danger">🚫 Cancel PO</button>
+  </form>
+  {% endif %}
+
+</div>
+{% endif %}
+</div>
+
+<!-- Receive Dialog (hidden by default) -->
+{% if po.status in ('Ordered', 'Partially Received') and current_user.is_manager_or_above %}
+<div id="receiveDialog" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+<div class="card" style="max-width:600px;width:90%;max-height:80vh;overflow-y:auto;">
+<h3>📥 Receive Items — {{ po.po_number }}</h3>
+<p style="color:#666;font-size:0.85rem;margin-bottom:1rem;">Enter quantities received for each line item. Leave blank or 0 to skip.</p>
+<form method="post" action="{{ url_for('po_receive', id=po.id) }}">
+<table style="font-size:0.9rem;">
+<thead><tr><th>Item</th><th>Ordered</th><th>Already Rec'd</th><th>Receive Now</th></tr></thead>
+<tbody>
+{% for li in po.line_items %}
+<tr>
+<td>{{ li.description[:30] }}</td>
+<td>{{ li.quantity_ordered }}</td>
+<td>{{ li.quantity_received or 0 }}</td>
+<td><input type="number" name="receive_qty_{{ li.id }}" value="0" min="0" max="{{ li.quantity_ordered - (li.quantity_received or 0) }}" style="width:80px;"></td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+<div style="margin-top:1rem;display:flex;gap:0.5rem;">
+<button type="submit" class="btn btn-success">✅ Confirm Receipt</button>
+<button type="button" class="btn" style="background:#eee;color:#333;" onclick="hideReceiveDialog()">Cancel</button>
+</div>
+</form>
+</div>
+</div>
+{% endif %}
+
+{% block extra_js %}
+<script>
+function showReceiveDialog() {
+  var d = document.getElementById('receiveDialog');
+  if (d) { d.style.display = 'flex'; }
+}
+function hideReceiveDialog() {
+  var d = document.getElementById('receiveDialog');
+  if (d) { d.style.display = 'none'; }
+}
+// Close dialog on background click
+document.addEventListener('click', function(e) {
+  var d = document.getElementById('receiveDialog');
+  if (d && e.target === d) { d.style.display = 'none'; }
+});
+</script>
+{% endblock %}
+
+{% endblock %}

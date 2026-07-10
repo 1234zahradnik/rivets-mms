@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}New Purchase Order - Rivet's CMMS{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:900px;margin:0 auto;">
+<h2>📋 New Purchase Order</h2>
+
+<form method="post" id="poForm">
+<div class="two-col">
+<div class="form-group">
+<label>Vendor *</label>
+<select name="vendor_id" required>
+  <option value="">— Select Vendor —</option>
+  {% for v in vendors %}
+  <option value="{{ v.id }}">{{ v.name }}</option>
+  {% endfor %}
+</select>
+{% if not vendors %}
+<span class="hint">⚠ No active vendors. <a href="{{ url_for('vendor_add') }}">Add one first</a>.</span>
+{% endif %}
+</div>
+<div class="form-group">
+<label>Expected Delivery Date</label>
+<input type="date" name="expected_date">
+</div>
+</div>
+
+<div class="two-col">
+<div class="form-group">
+<label>Shipping Cost</label>
+<input type="number" name="shipping_cost" step="0.01" min="0" value="0" placeholder="0.00">
+</div>
+<div class="form-group">
+<label>Tax Amount</label>
+<input type="number" name="tax_amount" step="0.01" min="0" value="0" placeholder="0.00">
+</div>
+</div>
+
+<div class="form-group">
+<label>Linked Work Order (optional)</label>
+<select name="linked_wo">
+  <option value="">— None —</option>
+  {% for wo in open_wos %}
+  <option value="{{ wo.id }}">{{ wo.wo_number }} — {{ wo.title[:50] }}</option>
+  {% endfor %}
+</select>
+</div>
+
+<div class="form-group">
+<label>Notes</label>
+<textarea name="notes" rows="2" placeholder="Internal notes about this order..."></textarea>
+</div>
+
+<hr style="margin:1.5rem 0;border-color:var(--border);">
+
+<h3 style="margin-bottom:0.75rem;">Line Items</h3>
+
+<table id="lineItemsTable">
+<thead>
+<tr>
+<th style="width:30px;">#</th>
+<th>Inventory Item</th>
+<th>Part #</th>
+<th>Description</th>
+<th style="width:80px;">Qty</th>
+<th style="width:100px;">Unit Cost</th>
+<th style="width:50px;"></th>
+</tr>
+</thead>
+<tbody id="lineItemsBody">
+<tr class="line-row" data-line="1">
+<td class="line-num">1</td>
+<td>
+  <select name="line_inv_1" class="inv-select" onchange="fillFromInventory(this)" style="width:100%;">
+    <option value="">— Manual Entry —</option>
+    {% for item in inventory %}
+    <option value="{{ item.id }}"
+            data-part="{{ item.part_number }}"
+            data-desc="{{ item.name }}"
+            data-cost="{{ '%.2f'|format(item.unit_cost) }}">
+      {{ item.part_number }} — {{ item.name[:30] }}
+    </option>
+    {% endfor %}
+  </select>
+</td>
+<td><input type="text" name="line_part_1" placeholder="Part #" style="width:100%;"></td>
+<td><input type="text" name="line_desc_1" placeholder="Description" required style="width:100%;"></td>
+<td><input type="number" name="line_qty_1" value="1" min="1" style="width:100%;"></td>
+<td><input type="number" name="line_cost_1" step="0.01" min="0" value="0.00" style="width:100%;"></td>
+<td><button type="button" class="btn btn-sm btn-danger remove-line" title="Remove">✕</button></td>
+</tr>
+</tbody>
+</table>
+
+<button type="button" class="btn btn-sm" style="background:#e8eaf6;color:#283593;margin-top:0.5rem;" onclick="addLine()">+ Add Line</button>
+
+<div style="margin-top:1.5rem;display:flex;gap:0.5rem;">
+<button type="submit" class="btn btn-primary">Create Purchase Order</button>
+<a href="{{ url_for('purchase_orders') }}" class="btn" style="background:#eee;color:#333;">Cancel</a>
+</div>
+</form>
+</div>
+
+{% block extra_js %}
+<script>
+var lineCount = 1;
+
+function addLine() {
+  lineCount++;
+  var tbody = document.getElementById('lineItemsBody');
+  var tr = document.createElement('tr');
+  tr.className = 'line-row';
+  tr.setAttribute('data-line', lineCount);
+  tr.innerHTML =
+    '<td class="line-num">' + lineCount + '</td>' +
+    '<td><select name="line_inv_' + lineCount + '" class="inv-select" onchange="fillFromInventory(this)" style="width:100%;">' +
+    '<option value="">— Manual Entry —</option>' +
+    {% for item in inventory %}
+    '<option value="{{ item.id }}" data-part="{{ item.part_number }}" data-desc="{{ item.name }}" data-cost="{{ '%.2f'|format(item.unit_cost) }}">{{ item.part_number }} — {{ item.name[:30] }}</option>' +
+    {% endfor %}
+    '</select></td>' +
+    '<td><input type="text" name="line_part_' + lineCount + '" placeholder="Part #" style="width:100%;"></td>' +
+    '<td><input type="text" name="line_desc_' + lineCount + '" placeholder="Description" required style="width:100%;"></td>' +
+    '<td><input type="number" name="line_qty_' + lineCount + '" value="1" min="1" style="width:100%;"></td>' +
+    '<td><input type="number" name="line_cost_' + lineCount + '" step="0.01" min="0" value="0.00" style="width:100%;"></td>' +
+    '<td><button type="button" class="btn btn-sm btn-danger remove-line" title="Remove" onclick="removeLine(this)">✕</button></td>';
+  tbody.appendChild(tr);
+}
+
+function removeLine(btn) {
+  var row = btn.closest('.line-row');
+  if (document.querySelectorAll('.line-row').length <= 1) return;
+  row.remove();
+  renumberLines();
+}
+
+function renumberLines() {
+  var rows = document.querySelectorAll('.line-row');
+  rows.forEach(function(row, i) {
+    var num = i + 1;
+    row.setAttribute('data-line', num);
+    row.querySelector('.line-num').textContent = num;
+    // Update all input names
+    row.querySelectorAll('[name]').forEach(function(el) {
+      el.name = el.name.replace(/_\d+$/, '_' + num);
+    });
+    lineCount = rows.length;
+  });
+}
+
+function fillFromInventory(select) {
+  var opt = select.options[select.selectedIndex];
+  if (!opt.value) return;
+  var row = select.closest('.line-row');
+  var lineNum = row.getAttribute('data-line');
+  row.querySelector('[name="line_part_' + lineNum + '"]').value = opt.getAttribute('data-part') || '';
+  row.querySelector('[name="line_desc_' + lineNum + '"]').value = opt.getAttribute('data-desc') || '';
+  row.querySelector('[name="line_cost_' + lineNum + '"]').value = opt.getAttribute('data-cost') || '0.00';
+}
+</script>
+{% endblock %}
+
+{% endblock %}

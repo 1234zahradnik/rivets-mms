@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Vendors - Rivet's CMMS{% endblock %}
+{% block content %}
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+<h2>🧾 Vendors</h2>
+<a href="{{ url_for('vendor_add') }}" class="btn btn-accent">+ Add Vendor</a>
+</div>
+
+{% if vendors %}
+<table class="hide-mobile">
+<thead>
+<tr>
+<th>Name</th>
+<th>Contact</th>
+<th>Email</th>
+<th>Phone</th>
+<th>Terms</th>
+<th>Status</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+{% for v in vendors %}
+<tr>
+<td><strong>{{ v.name }}</strong></td>
+<td>{{ v.contact_name or '—' }}</td>
+<td>{{ v.email or '—' }}</td>
+<td>{{ v.phone or '—' }}</td>
+<td>{{ v.terms }}</td>
+<td><span class="badge {% if v.is_active %}badge-completed{% else %}badge-cancelled{% endif %}">{{ 'Active' if v.is_active else 'Inactive' }}</span></td>
+<td style="white-space:nowrap;">
+  <a href="{{ url_for('vendor_edit', id=v.id) }}" class="btn btn-sm" style="background:#e8eaf6;color:#283593;">✏️ Edit</a>
+  {% if v.is_active %}
+  <form method="post" action="{{ url_for('vendor_delete', id=v.id) }}" style="display:inline;" onsubmit="return confirm('Deactivate {{ v.name }}?');">
+    <button class="btn btn-sm btn-danger">Deactivate</button>
+  </form>
+  {% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+<!-- Mobile cards -->
+<div class="mob-cards">
+{% for v in vendors %}
+<div class="mob-card">
+<div class="mob-card-title">{{ v.name }}</div>
+<div class="mob-card-meta">
+  <span class="badge {% if v.is_active %}badge-completed{% else %}badge-cancelled{% endif %}">{{ 'Active' if v.is_active else 'Inactive' }}</span>
+  {% if v.contact_name %}<span>👤 {{ v.contact_name }}</span>{% endif %}
+  {% if v.email %}<span>📧 {{ v.email }}</span>{% endif %}
+  {% if v.phone %}<span>📞 {{ v.phone }}</span>{% endif %}
+  <span>{{ v.terms }}</span>
+</div>
+<div style="margin-top:0.5rem;display:flex;gap:0.3rem;">
+  <a href="{{ url_for('vendor_edit', id=v.id) }}" class="btn btn-sm" style="background:#e8eaf6;color:#283593;">✏️ Edit</a>
+  {% if v.is_active %}
+  <form method="post" action="{{ url_for('vendor_delete', id=v.id) }}" style="display:inline;" onsubmit="return confirm('Deactivate {{ v.name }}?');">
+    <button class="btn btn-sm btn-danger">Deactivate</button>
+  </form>
+  {% endif %}
+</div>
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+<div class="empty-icon">🧾</div>
+<h3>No vendors yet</h3>
+<p>Add your suppliers and vendors here so you can create purchase orders.</p>
+<a href="{{ url_for('vendor_add') }}" class="btn btn-accent">+ Add Your First Vendor</a>
+</div>
+{% endif %}
+</div>
+
+{% endblock %}
