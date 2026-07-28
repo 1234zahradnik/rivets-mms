@@ -120,7 +120,7 @@
 <td>{{ wo.title[:40] }}</td>
 <td><span class="badge badge-{{ wo.status|lower|replace(' ', '-') }}">{{ wo.status }}</span></td>
 <td><span class="badge badge-{{ wo.priority|lower }}">{{ wo.priority }}</span></td>
-<td>{{ wo.created_at.strftime('%m/%d/%Y') }}</td>
+<td>{{ wo.created_at.strftime('%m/%d/%Y') if wo.created_at else '—' }}</td>
 </tr>
 {% endfor %}
 </tbody>

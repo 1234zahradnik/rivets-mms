@@ -39,7 +39,7 @@
 <table style="font-size:0.9rem;">
 <tr><td><strong>Machine:</strong></td><td>{{ wo.machine.name if wo.machine else 'N/A' }} ({{ wo.machine.asset_tag if wo.machine else '-' }})</td></tr>
 <tr><td><strong>Requester:</strong></td><td>{{ wo.requester_name or '-' }} <{{ wo.requester_email or 'no email' }}></td></tr>
-<tr><td><strong>Created:</strong></td><td>{{ wo.created_at.strftime('%Y-%m-%d %H:%M') }}{% if wo.status not in ['Completed','Cancelled'] %} <span style="color:#888;font-size:0.85rem;">({{ (today - wo.created_at.date()).days }}d ago)</span>{% endif %}</td></tr>
+<tr><td><strong>Created:</strong></td><td>{% if wo.created_at %}{{ wo.created_at.strftime('%Y-%m-%d %H:%M') }}{% if wo.status not in ['Completed','Cancelled'] %} <span style="color:#888;font-size:0.85rem;">({{ (today - wo.created_at.date()).days }}d ago)</span>{% endif %}{% else %}—{% endif %}</td></tr>
 <tr><td><strong>Due Date:</strong></td><td>{{ wo.due_date.strftime('%Y-%m-%d') if wo.due_date else 'Not set' }}</td></tr>
 <tr><td><strong>Scheduled:</strong></td><td>{{ wo.scheduled_date.strftime('%Y-%m-%d') if wo.scheduled_date else 'Not scheduled' }}</td></tr>
 <tr><td><strong>Started:</strong></td><td>{{ wo.started_at.strftime('%Y-%m-%d %H:%M') if wo.started_at else '-' }}</td></tr>
